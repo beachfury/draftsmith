@@ -1,5 +1,5 @@
 plugins {
-    id 'net.fabricmc.fabric-loom' version '1.17.12'
+    id 'net.fabricmc.fabric-loom-remap' version '1.17.12'
     id 'java'
     id 'maven-publish'
 }
@@ -18,27 +18,28 @@ repositories {
 }
 
 dependencies {
-    // Minecraft 26.x is shipped unobfuscated with official Mojang names —
-    // NO 'mappings' line; Loom 1.17 handles it.
+    // 1.21.1 is OBFUSCATED (unlike 26.x): era-appropriate Loom + the mojmap mappings line +
+    // modImplementation (intermediary-mapped deps). The shipped jar is the remapped one.
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.officialMojangMappings()
 
-    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
     // Server-side inventory GUIs (renders on vanilla + Bedrock-via-Geyser). Must also be present at
-    // runtime — sgui-2.0.0+26.1.jar goes in the server's mods folder alongside this mod.
-    implementation "eu.pb4:sgui:2.0.0+26.1"
+    // runtime — sgui-1.6.1+1.21.1.jar goes in the server's mods folder alongside this mod.
+    modImplementation "eu.pb4:sgui:1.6.1+1.21.1"
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_25
-    targetCompatibility = JavaVersion.VERSION_25
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
     withSourcesJar()
 }
 
 tasks.withType(JavaCompile).configureEach {
     it.options.encoding = 'UTF-8'
-    it.options.release = 25
+    it.options.release = 21
 }
 
 processResources {

@@ -27,7 +27,7 @@ public final class DraftSmithApi {
     public static final class DefaultAccess implements EditAccess {
         @Override
         public boolean isActiveDimension(net.minecraft.world.level.Level level) {
-            return DraftConfig.worldEnabled(level.dimension().identifier().toString());
+            return DraftConfig.worldEnabled(level.dimension().location().toString()); // 26.x: .identifier()
         }
 
         @Override
@@ -45,8 +45,10 @@ public final class DraftSmithApi {
             var server = p.level().getServer();
             if (server == null) return false;
             if (server.isSingleplayer()) return true;
-            if (p.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER)) return true;
-            return server.isSingleplayerOwner(p.nameAndId()) || server.getPlayerList().isOp(p.nameAndId());
+            // 1.21.1: permission-level check. (26.x: p.permissions().hasPermission(COMMANDS_GAMEMASTER)
+            // + nameAndId()-based owner/op lookups.)
+            if (p.hasPermissions(2)) return true;
+            return server.isSingleplayerOwner(p.getGameProfile()) || server.getPlayerList().isOp(p.getGameProfile());
         }
 
         @Override

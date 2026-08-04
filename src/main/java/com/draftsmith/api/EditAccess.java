@@ -31,10 +31,10 @@ public interface EditAccess {
     boolean canEdit(ServerPlayer p, boolean admin, int x, int y, int z);
 
     /** Lowest editable Y (used to clamp selection loops before the per-block check). */
-    default int minY(ServerLevel level) { return level.getMinY(); }
+    default int minY(ServerLevel level) { return level.getMinBuildHeight(); } // 26.x: getMinY()
 
-    /** Highest editable Y. */
-    default int maxY(ServerLevel level) { return level.getMaxY(); }
+    /** Highest editable Y. 1.21.1's getMaxBuildHeight() is EXCLUSIVE — the -1 matters. */
+    default int maxY(ServerLevel level) { return level.getMaxBuildHeight() - 1; } // 26.x: getMaxY() (inclusive)
 
     /**
      * What "erase to ground" means at this column, or null when there is no ground concept —

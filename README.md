@@ -114,7 +114,9 @@ DraftSmith, jails it to plot ownership, and serves the same tools as `/plot <sub
 ./gradlew build
 ```
 
-Gradle 9 / Loom 1.17 / JDK 25. Branch `main` targets Minecraft 26.1.2, branch `26.2` targets 26.2.
+Branch `main` targets Minecraft 26.1.2, branch `26.2` targets 26.2 (Gradle 9 / Loom 1.17 / JDK 25;
+26.x is unobfuscated — no mappings). Branch `1.21.1` targets Minecraft 1.21.1, which is obfuscated:
+it uses the `fabric-loom-remap` plugin with official Mojang mappings, Java 21, and sgui 1.6.x.
 
 ## License
 

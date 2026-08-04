@@ -15,6 +15,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
@@ -84,14 +85,16 @@ public final class DraftBrush {
         CustomData d = s.get(DataComponents.CUSTOM_DATA);
         if (d == null) return c;
         CompoundTag root = d.copyTag();
-        CompoundTag t = root.contains(TAG) ? root.getCompoundOrEmpty(TAG) : root.getCompoundOrEmpty(LEGACY_TAG);
-        try { c.type = Type.valueOf(t.getStringOr("type", "SPLATTER")); } catch (Exception ignored) {}
-        c.size = Math.max(1, Math.min(15, t.getIntOr("size", 4)));
-        c.density = Math.max(10, Math.min(100, t.getIntOr("density", 60)));
-        c.fade = t.getBooleanOr("fade", true);
-        c.surface = t.getBooleanOr("surface", true);
-        c.mask = t.getStringOr("mask", "");
-        String pal = t.getStringOr("palette", "");
+        // 1.21.1 CompoundTag has no *Or getters (26.x: getStringOr/getIntOr/getBooleanOr) — the
+        // contains() guards matter for the booleans, whose absent-default is TRUE, not false.
+        CompoundTag t = root.contains(TAG) ? root.getCompound(TAG) : root.getCompound(LEGACY_TAG);
+        try { c.type = Type.valueOf(t.contains("type") ? t.getString("type") : "SPLATTER"); } catch (Exception ignored) {}
+        c.size = Math.max(1, Math.min(15, t.contains("size") ? t.getInt("size") : 4));
+        c.density = Math.max(10, Math.min(100, t.contains("density") ? t.getInt("density") : 60));
+        c.fade = !t.contains("fade") || t.getBoolean("fade");
+        c.surface = !t.contains("surface") || t.getBoolean("surface");
+        c.mask = t.getString("mask");
+        String pal = t.getString("palette");
         if (!pal.isEmpty()) for (String id : pal.split(",")) if (!id.isBlank()) c.palette.add(id);
         return c;
     }
@@ -116,14 +119,15 @@ public final class DraftBrush {
 
     /** openGui is injected by the initializer wiring so edit/ never depends on gui/. */
     public static void register(Consumer<ServerPlayer> openGui) {
+        // 1.21.1 fabric-api: UseItemCallback returns InteractionResultHolder<ItemStack> (26.x: plain InteractionResult).
         UseItemCallback.EVENT.register((player, world, hand) -> {
-            if (!access().isActiveDimension(world)) return InteractionResult.PASS;
             ItemStack held = player.getItemInHand(hand);
-            if (!isBrush(held)) return InteractionResult.PASS;
-            if (world.isClientSide() || !(player instanceof ServerPlayer sp)) return InteractionResult.SUCCESS;
-            if (!access().canUse(sp)) return InteractionResult.PASS;
+            if (!access().isActiveDimension(world)) return InteractionResultHolder.pass(held);
+            if (!isBrush(held)) return InteractionResultHolder.pass(held);
+            if (world.isClientSide() || !(player instanceof ServerPlayer sp)) return InteractionResultHolder.success(held);
+            if (!access().canUse(sp)) return InteractionResultHolder.pass(held);
             if (player.isShiftKeyDown()) PENDING_GUI.add(sp.getUUID()); else paint(sp, held);
-            return InteractionResult.SUCCESS;
+            return InteractionResultHolder.success(held);
         });
         // Clicking directly on a block fires UseBlock first — same behavior, and swallow the click
         // so the brush never opens chests / presses buttons mid-stroke.
@@ -483,7 +487,7 @@ public final class DraftBrush {
         int points = Math.max(12, r * 6);
         for (int i = 0; i < points; i++) {
             double a = 2 * Math.PI * i / points;
-            level.sendParticles(sp, ParticleTypes.END_ROD, true, false,
+            level.sendParticles(sp, ParticleTypes.END_ROD, true, // 1.21.1: one boolean (force); 26.x has two
                     c.getX() + 0.5 + Math.cos(a) * (r + 0.5), c.getY() + 1.1, c.getZ() + 0.5 + Math.sin(a) * (r + 0.5),
                     1, 0, 0, 0, 0);
         }
@@ -498,10 +502,10 @@ public final class DraftBrush {
         double z1 = Math.min(p1.getZ(), p2.getZ()), z2 = Math.max(p1.getZ(), p2.getZ()) + 1;
         double step = 1.5;
         for (double x = x1; x <= x2; x += step) for (double[] yz : new double[][]{{y1,z1},{y1,z2},{y2,z1},{y2,z2}})
-            level.sendParticles(sp, ParticleTypes.HAPPY_VILLAGER, true, false, x, yz[0], yz[1], 1, 0, 0, 0, 0);
+            level.sendParticles(sp, ParticleTypes.HAPPY_VILLAGER, true,x, yz[0], yz[1], 1, 0, 0, 0, 0);
         for (double y = y1; y <= y2; y += step) for (double[] xz : new double[][]{{x1,z1},{x1,z2},{x2,z1},{x2,z2}})
-            level.sendParticles(sp, ParticleTypes.HAPPY_VILLAGER, true, false, xz[0], y, xz[1], 1, 0, 0, 0, 0);
+            level.sendParticles(sp, ParticleTypes.HAPPY_VILLAGER, true,xz[0], y, xz[1], 1, 0, 0, 0, 0);
         for (double z = z1; z <= z2; z += step) for (double[] xy : new double[][]{{x1,y1},{x1,y2},{x2,y1},{x2,y2}})
-            level.sendParticles(sp, ParticleTypes.HAPPY_VILLAGER, true, false, xy[0], xy[1], z, 1, 0, 0, 0, 0);
+            level.sendParticles(sp, ParticleTypes.HAPPY_VILLAGER, true,xy[0], xy[1], z, 1, 0, 0, 0, 0);
     }
 }

@@ -3,7 +3,7 @@ package com.draftsmith.compat;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
@@ -19,18 +19,18 @@ public final class Compat {
     private Compat() {}
 
     // ---- registry lookups --------------------------------------------------
-    // 26.x: Identifier + Registry.getValue. 1.21.1: ResourceLocation + Registry.get.
+    // 1.21.1: ResourceLocation + Registry.get. 26.x: Identifier + Registry.getValue.
     // Always address blocks/items by REGISTRY ID in shared code — 26.2 moved the per-color
     // constants (LIME_CONCRETE etc.) into ColorCollection, but ids never changed.
 
     /** Raw block lookup by registry id (returns the registry default on unknown ids). */
     public static Block block(String id) {
-        return BuiltInRegistries.BLOCK.getValue(Identifier.parse(id));
+        return BuiltInRegistries.BLOCK.get(ResourceLocation.parse(id));
     }
 
     /** Raw item lookup by registry id (returns the registry default on unknown ids). */
     public static Item item(String id) {
-        return BuiltInRegistries.ITEM.getValue(Identifier.parse(id));
+        return BuiltInRegistries.ITEM.get(ResourceLocation.parse(id));
     }
 
     // ---- sign text (measuring tape numbers) --------------------------------
