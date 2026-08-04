@@ -1,0 +1,58 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version '1.17.12'
+    id 'java'
+    id 'maven-publish'
+}
+
+// Jar name carries the Minecraft target, e.g. draftsmith-0.1.0+26.1.2.jar (Fabric convention).
+version = "${project.mod_version}+${project.minecraft_version}"
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    // For sgui (server-side chest GUIs).
+    maven { url = 'https://maven.nucleoid.xyz' }
+}
+
+dependencies {
+    // Minecraft 26.x is shipped unobfuscated with official Mojang names —
+    // NO 'mappings' line; Loom 1.17 handles it.
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // Server-side inventory GUIs (renders on vanilla + Bedrock-via-Geyser). Must also be present at
+    // runtime — sgui-2.0.0+26.1.jar goes in the server's mods folder alongside this mod.
+    implementation "eu.pb4:sgui:2.0.0+26.1"
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = 'UTF-8'
+    it.options.release = 25
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+// publishToMavenLocal — how FabricPlots picks this jar up for its Jar-in-Jar bundle.
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+}

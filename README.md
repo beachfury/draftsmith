@@ -1,0 +1,121 @@
+# DraftSmith
+
+A **lightweight, server-side building editor** for **Fabric / Minecraft 26.1.2 & 26.2**, built for
+**Java + Bedrock crossplay** (Geyser/Floodgate). Nothing is required on the client — Bedrock players
+use every screen, brush and command through Geyser. Drop the jar on the server and your ops have a
+full GUI-driven build kit on any world.
+
+DraftSmith is not a WorldEdit replacement. It's the small, handy toolkit for people who *build*:
+paint brushes, parametric shapes, measuring tools, a clipboard and undo — all driven by chest GUIs
+that work everywhere, with a hard per-block permission jail underneath.
+
+## Features
+
+- **The editor hub** — `/draft` opens a chest-GUI home screen: corners, copy/cut/paste, undo/redo,
+  fill/walls, stack/move, and doors into the Shapes, Brushes and Measure screens.
+- **Paint brushes** — `/draft brush` hands you a brush that paints strokes of blocks wherever you aim
+  (30 blocks). Sneak + right-click opens its settings; right-click paints. Settings live **on the brush
+  itself**, so every brush is its own preset — name them at an anvil and swap like a painter.
+- **Eleven brush types.** **Splatter**, **Round**, **Overlay**, **Spray**, **Wall**, **Gradient**
+  (palette in order — rings on the ground, bands on walls), **Blend** (re-mixes what's already there
+  until seams disappear), **Raise / Lower / Smooth** (terraformers), and **Erase**.
+- **Brush dials.** Size (radius up to 15), density, fade (edges thin out), Surface vs Ball mode, and a
+  mask ("paint over only X") so a stroke only ever replaces the block you tell it to.
+- **9-slot weighted palette.** Load up to nine blocks; duplicates make a block proportionally more
+  common — 3× grass + 1× moss paints a mostly-grass mix.
+- **Placement that respects shape.** Painted half-blocks (slabs, carpets, plates…) rest *on top of*
+  the ground while full blocks replace the surface — decided by collision shape, so modded blocks work
+  too. Buttons and levers lie flat. Splatter/spray are capped at your aim height and only land on open
+  surfaces, so strokes never stack pillars upward.
+- **Shapes** — circle, square, sphere, cylinder, pyramid and line, filled or hollow, with height,
+  thickness, repeat and spacing dials. Shapes build where you **aim** (or on the self-cleaning gold
+  center marker); even sizes get a true 2×2 center.
+- **Measuring tools** — a live selection-size readout, find-center, and the yellow/black **measuring
+  tape** with numbered signs (up to 4 tapes at once). Tapes restore exactly what they covered.
+- **Clipboard** — copy/cut, then paste lands where you aim. Stack and move follow your facing.
+- **Random texture mode** — every edit *and every hand-placed block* rolls from the block items in
+  your hotbar. Duplicate slots weight the mix. Lay a varied path without ever scrolling.
+- **Undo/redo** — 10 edits deep, per player; every stroke or build is one undo entry, capped at
+  65,536 blocks per edit so a single op can never freeze the server.
+- **Particle previews** — a ring showing the brush's exact radius while you aim, and a green outline
+  around your wand selection.
+
+## Install
+
+Server side only. Drop into the server's `mods/` folder:
+
+- `draftsmith-<version>.jar`
+- [Fabric API](https://modrinth.com/mod/fabric-api)
+- [sgui](https://maven.nucleoid.xyz/) (`sgui-2.x` for your Minecraft version)
+
+## Permissions — ship safe
+
+On a survival server an unrestricted editor is a grief cannon, so DraftSmith is **ops-only by
+default**: ops (and the single-player host) get everything, everyone else gets nothing — the `/draft`
+command doesn't even appear for them.
+
+`config/draftsmith.properties`:
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `editors` | *(blank)* | Comma-separated player names allowed to use the editor without being op |
+| `worlds` | *(blank)* | Comma-separated dimension ids the editor works in (blank = all worlds) |
+
+`/draft reload` applies changes live.
+
+## Commands
+
+Everything also has a GUI button — commands and screens do the same things.
+
+| Command | What it does |
+| --- | --- |
+| `/draft` | Open the editor hub |
+| `/draft editwand` | Get the selection wand (right-click corners 1/2 alternately) |
+| `/draft brush` | Get a paint brush |
+| `/draft pos1` / `pos2` | Set a corner where you stand |
+| `/draft set <block>` | Fill the selection |
+| `/draft replace <from> <to>` | Replace only matching blocks |
+| `/draft walls <block>` | Perimeter walls around the selection |
+| `/draft copy` / `cut` / `paste` | Clipboard (paste lands where you aim) |
+| `/draft stack <n>` / `move <n>` | Repeat / shift the selection along your facing |
+| `/draft sphere` / `hsphere <block> <r>` | Sphere / hollow sphere at your feet |
+| `/draft cyl <block> <r> [h]` | Cylinder |
+| `/draft disc` / `ring <block> <size> [h]` | Flat disc / ring |
+| `/draft line <block> [thickness]` | Corner-to-corner 3D line |
+| `/draft center` | Gold-mark the middle of the corner1→corner2 line |
+| `/draft tape` / `tape clear` | Numbered measuring tape between corners |
+| `/draft undo` / `redo` | Step edits back / forward |
+| `/draft edit` / `measure` | Open the hub / measuring screen |
+| `/draft reload` | (ops) Reload the config |
+
+## For mod developers — the `EditAccess` seam
+
+Every block DraftSmith writes is checked through one interface. A host mod can install its own
+provider to jail edits to its rules and hang the same commands under its own root:
+
+```java
+// fabric.mod.json: "depends": { "draftsmith": "*" } — you initialize after DraftSmith
+DraftSmithApi.setAccess(new EditAccess() {
+    public boolean isActiveDimension(Level level) { ... }   // where the editor runs
+    public boolean isAdmin(ServerPlayer p) { ... }          // unclamped editing
+    public boolean canEdit(ServerPlayer p, boolean admin, int x, int y, int z) { ... } // the jail
+    public Ground ground(ServerLevel level, int x, int z) { ... } // what Erase restores (optional)
+    // plus cosmetic overrides: commandRoot(), messagePrefix(), notHereMessage(), editableAreaName()
+});
+```
+
+`DraftCommands.attach(rootBuilder, buildContext)` chains every editor subcommand onto your own
+command root. [FabricPlots](https://github.com/beachfury/fabricplots) does exactly this — it bundles
+DraftSmith, jails it to plot ownership, and serves the same tools as `/plot <subcommand>`.
+
+## Building
+
+```
+./gradlew build
+```
+
+Gradle 9 / Loom 1.17 / JDK 25. Branch `main` targets Minecraft 26.1.2, branch `26.2` targets 26.2.
+
+## License
+
+MIT

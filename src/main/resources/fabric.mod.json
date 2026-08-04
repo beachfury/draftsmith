@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "draftsmith",
+  "version": "${version}",
+  "name": "DraftSmith",
+  "description": "Lightweight server-side building editor for Fabric: GUI shapes, paint brushes, measuring tools, clipboard and undo. Crossplay-ready (Geyser/Bedrock) — no client mod required.",
+  "authors": ["BeachFury"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.draftsmith.DraftSmith"]
+  },
+  "mixins": ["draftsmith.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.19.0",
+    "fabric-api": "*",
+    "minecraft": "*",
+    "sgui": "*"
+  }
+}
