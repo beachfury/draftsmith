@@ -120,6 +120,29 @@ public final class DraftBrushGui {
             }).build());
         }
 
+        // Row 5 — the protected list: blocks a stroke must NEVER paint over (masks in reverse —
+        // the palette is what the brush paints WITH, this row is what it must leave alone).
+        for (int slot = 0; slot < 9; slot++) {
+            final int idx = slot;
+            String id = idx < c.protect.size() ? c.protect.get(idx) : null;
+            Item icon = id != null ? Compat.item(id) : Compat.item("minecraft:red_stained_glass_pane");
+            GuiElementBuilder b = new GuiElementBuilder(id != null && icon != Items.AIR ? icon : (id != null ? Items.BARRIER : Compat.item("minecraft:red_stained_glass_pane")))
+                    .setName(Component.literal(id != null ? "Protected: " + pretty(id) : "Empty protected slot"))
+                    .addLoreLine(Component.literal("Click holding a block — that block is NEVER painted over"))
+                    .addLoreLine(Component.literal("All other blocks repaint as normal · empty cursor clears"));
+            gui.setSlot(36 + slot, b.setCallback((i, t, a, g) -> {
+                ItemStack carried = sp.containerMenu.getCarried();
+                if (!carried.isEmpty() && carried.getItem() instanceof BlockItem bi) {
+                    String bid = BuiltInRegistries.BLOCK.getKey(bi.getBlock()).toString();
+                    while (c.protect.size() <= idx) c.protect.add(bid);
+                    c.protect.set(idx, bid);
+                } else if (idx < c.protect.size()) {
+                    c.protect.remove(idx);
+                }
+                save(sp, brush, c); render(gui, sp);
+            }).build());
+        }
+
         // Row 4 — brush management.
         gui.setSlot(28, new GuiElementBuilder(Items.BRUSH)
                 .setName(Component.literal("Get another brush"))
@@ -130,6 +153,8 @@ public final class DraftBrushGui {
                 }).build());
         gui.setSlot(30, DraftEditGui.btn(Items.BARRIER, "Clear palette",
                 (i, t, a, g) -> { c.palette.clear(); save(sp, brush, c); render(gui, sp); }));
+        gui.setSlot(32, DraftEditGui.btn(Items.SHIELD, "Clear protected list",
+                (i, t, a, g) -> { c.protect.clear(); save(sp, brush, c); render(gui, sp); }));
         gui.setSlot(34, DraftEditGui.btn(Items.CLOCK, "Undo last stroke",
                 (i, t, a, g) -> DraftEdit.undo(sp, (net.minecraft.server.level.ServerLevel) sp.level())));
 
@@ -138,7 +163,8 @@ public final class DraftBrushGui {
         gui.setSlot(49, new GuiElementBuilder(Items.BRUSH)
                 .setName(Component.literal("Editing: the brush in your hand"))
                 .addLoreLine(Component.literal(c.type.name().charAt(0) + c.type.name().substring(1).toLowerCase()
-                        + " · size " + c.size + " · " + (c.palette.isEmpty() ? "no blocks yet" : c.palette.size() + " palette entries")))
+                        + " · size " + c.size + " · " + (c.palette.isEmpty() ? "no blocks yet" : c.palette.size() + " palette entries")
+                        + (c.protect.isEmpty() ? "" : " · " + c.protect.size() + " protected")))
                 .build());
     }
 

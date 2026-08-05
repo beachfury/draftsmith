@@ -23,6 +23,10 @@ that work everywhere, with a hard per-block permission jail underneath.
   mask ("paint over only X") so a stroke only ever replaces the block you tell it to.
 - **9-slot weighted palette.** Load up to nine blocks; duplicates make a block proportionally more
   common — 3× grass + 1× moss paints a mostly-grass mix.
+- **9-slot protected list.** The mask in reverse: load blocks the brush must **never paint over** —
+  everything else repaints as normal. Re-texture a mixed floor without eating the carpet, terraform
+  around a path without touching it. Stored on the brush, works with every brush type including
+  Erase and the terraformers.
 - **Placement that respects shape.** Painted half-blocks (slabs, carpets, plates…) rest *on top of*
   the ground while full blocks replace the surface — decided by collision shape, so modded blocks work
   too. Buttons and levers lie flat. Splatter/spray are capped at your aim height and only land on open
