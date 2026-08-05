@@ -169,9 +169,8 @@ public final class DraftCommands {
         try {
             ServerPlayer p = user(ctx);
             if (p == null) return 0;
-            String root = access().commandRoot();
             p.addItem(DraftEdit.createWand());
-            msg(ctx, "Wand given. Right-click a block for corner 1, right-click again for corner 2 (or use /" + root + " pos1 · /" + root + " pos2). Then /" + root + " set <block> or /" + root + " replace <from> <to>.");
+            msg(ctx, "Wand given. Right-click a block for corner 1, right-click again for corner 2 (or use /draft pos1 · /draft pos2). Then /draft set <block> or /draft replace <from> <to>.");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
