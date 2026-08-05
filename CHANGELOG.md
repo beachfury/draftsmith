@@ -2,6 +2,15 @@
 
 All notable changes to DraftSmith.
 
+## [1.0.1] — unreleased
+
+### Changed
+- Surface brushes (paint, gradient, blend, splatter, spray, overlay) now treat
+  see-through decorations — signs, lecterns, torches, flowers, snow layers, any
+  block that doesn't fill its space — as open air when finding the surface. The
+  ground **beneath a sign or lectern** is paintable at last; solid cover (leaves,
+  logs, buildings) still shields the column as before.
+
 ## [1.0.0] — 2026-08-05
 
 The first release: the FabricPlots build editor, now its own mod — released together with
