@@ -2,9 +2,10 @@
 
 All notable changes to DraftSmith.
 
-## [0.1.0] — 2026-08-04
+## [1.0.0] — 2026-08-05
 
-The first release: the FabricPlots build editor, now its own mod.
+The first release: the FabricPlots build editor, now its own mod — released together with
+FabricPlots 1.0.0, which bundles it. Available for Minecraft 26.1.2, 26.2 and 1.21.1.
 
 DraftSmith is the GUI building toolkit that grew inside
 [FabricPlots](https://github.com/beachfury/fabricplots) over its 0.3.0–0.4.0 releases, extracted so
