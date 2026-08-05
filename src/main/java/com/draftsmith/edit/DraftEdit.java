@@ -219,7 +219,7 @@ public final class DraftEdit {
         UUID id = sp.getUUID();
         BlockPos p1 = POS1.get(id), p2 = POS2.get(id);
         String root = access().commandRoot();
-        if (p1 == null || p2 == null) { msg(sp, "Set both corners first — /" + root + " pos1 and /" + root + " pos2, or use /" + root + " editwand."); return 0; }
+        if (p1 == null || p2 == null) { msg(sp, "Set both corners first — /" + root + " pos1 and /" + root + " pos2, or grab the wand with /draft wand."); return 0; }
         final boolean admin = access().isAdmin(sp);
         final int x1 = Math.min(p1.getX(), p2.getX()), x2 = Math.max(p1.getX(), p2.getX());
         final int z1 = Math.min(p1.getZ(), p2.getZ()), z2 = Math.max(p1.getZ(), p2.getZ());
