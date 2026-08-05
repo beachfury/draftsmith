@@ -43,6 +43,10 @@ public final class DraftShapesGui {
     private static Params params(UUID id) { return PARAMS.computeIfAbsent(id, k -> new Params()); }
 
     public static void open(ServerPlayer sp) {
+        if (!com.draftsmith.api.DraftSmithApi.access().canUse(sp, com.draftsmith.api.EditAccess.Tool.SHAPES)) {
+            DraftEdit.msg(sp, "You don't have permission for the shapes tools.");
+            return;
+        }
         SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x6, sp, false);
         gui.setTitle(Component.literal("Build Editor — Shapes"));
         render(gui, sp);

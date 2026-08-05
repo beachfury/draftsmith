@@ -47,6 +47,9 @@ public final class DraftCommands {
                         .requires(src -> src.getPlayer() == null || access().isAdmin(src.getPlayer()))
                         .executes(ctx -> {
                             DraftConfig.load();
+                            // Re-send command trees — a newly-listed editor sees /draft immediately.
+                            var server = ctx.getSource().getServer();
+                            server.getPlayerList().getPlayers().forEach(pl -> server.getCommands().sendCommands(pl));
                             msg(ctx, "Config reloaded.");
                             return 1;
                         }));
@@ -147,6 +150,14 @@ public final class DraftCommands {
         return p;
     }
 
+    /** The editor gate plus a tool-group check (draftsmith.wand/edit/shapes/brush/measure). */
+    private static ServerPlayer editor(CommandContext<CommandSourceStack> ctx, EditAccess.Tool tool) throws Exception {
+        ServerPlayer p = editor(ctx);
+        if (p == null) return null;
+        if (!access().canUse(p, tool)) { msg(ctx, noTool(tool)); return null; }
+        return p;
+    }
+
     /** Same gate minus the dimension check — for handing out tools (usable from anywhere). */
     private static ServerPlayer user(CommandContext<CommandSourceStack> ctx) throws Exception {
         ServerPlayer p = ctx.getSource().getPlayerOrException();
@@ -154,11 +165,22 @@ public final class DraftCommands {
         return p;
     }
 
+    private static ServerPlayer user(CommandContext<CommandSourceStack> ctx, EditAccess.Tool tool) throws Exception {
+        ServerPlayer p = user(ctx);
+        if (p == null) return null;
+        if (!access().canUse(p, tool)) { msg(ctx, noTool(tool)); return null; }
+        return p;
+    }
+
+    private static String noTool(EditAccess.Tool tool) {
+        return "You don't have permission for the " + tool.name().toLowerCase(java.util.Locale.ROOT) + " tools.";
+    }
+
     // ---- handlers --------------------------------------------------------
 
     private static int brush(CommandContext<CommandSourceStack> ctx) {
         try {
-            ServerPlayer p = user(ctx);
+            ServerPlayer p = user(ctx, EditAccess.Tool.BRUSH);
             if (p == null) return 0;
             p.getInventory().placeItemBackInInventory(DraftBrush.createBrush());
             msg(ctx, "Paint brush added. Sneak + right-click to configure it, right-click to paint.");
@@ -168,7 +190,7 @@ public final class DraftCommands {
 
     private static int editwand(CommandContext<CommandSourceStack> ctx) {
         try {
-            ServerPlayer p = user(ctx);
+            ServerPlayer p = user(ctx, EditAccess.Tool.WAND);
             if (p == null) return 0;
             p.addItem(DraftEdit.createWand());
             msg(ctx, "Wand given. Right-click a block for corner 1, right-click again for corner 2 (or use /draft pos1 · /draft pos2). Then /draft set <block> or /draft replace <from> <to>.");
@@ -196,7 +218,7 @@ public final class DraftCommands {
 
     private static int setBlocks(CommandContext<CommandSourceStack> ctx) {
         try {
-            ServerPlayer p = editor(ctx);
+            ServerPlayer p = editor(ctx, EditAccess.Tool.EDIT);
             if (p == null) return 0;
             var block = BlockStateArgument.getBlock(ctx, "block");
             return DraftEdit.set(p, (ServerLevel) p.level(), block.getState());
@@ -205,7 +227,7 @@ public final class DraftCommands {
 
     private static int replaceBlocks(CommandContext<CommandSourceStack> ctx) {
         try {
-            ServerPlayer p = editor(ctx);
+            ServerPlayer p = editor(ctx, EditAccess.Tool.EDIT);
             if (p == null) return 0;
             var from = BlockStateArgument.getBlock(ctx, "from");
             var to = BlockStateArgument.getBlock(ctx, "to");
@@ -240,7 +262,7 @@ public final class DraftCommands {
 
     private static int measureGui(CommandContext<CommandSourceStack> ctx) {
         try {
-            ServerPlayer p = editor(ctx);
+            ServerPlayer p = editor(ctx, EditAccess.Tool.MEASURE);
             if (p == null) return 0;
             DraftMeasureGui.open(p);
             return 1;
@@ -249,7 +271,7 @@ public final class DraftCommands {
 
     private static int wallsEdit(CommandContext<CommandSourceStack> ctx) {
         try {
-            ServerPlayer p = editor(ctx);
+            ServerPlayer p = editor(ctx, EditAccess.Tool.EDIT);
             if (p == null) return 0;
             return DraftEdit.walls(p, (ServerLevel) p.level(), BlockStateArgument.getBlock(ctx, "block").getState());
         } catch (Exception e) { return err(ctx, e); }
@@ -257,7 +279,7 @@ public final class DraftCommands {
 
     private static int sphereEdit(CommandContext<CommandSourceStack> ctx, boolean hollow) {
         try {
-            ServerPlayer p = editor(ctx);
+            ServerPlayer p = editor(ctx, EditAccess.Tool.SHAPES);
             if (p == null) return 0;
             int r = IntegerArgumentType.getInteger(ctx, "radius");
             return DraftEdit.sphere(p, (ServerLevel) p.level(), BlockStateArgument.getBlock(ctx, "block").getState(), r, hollow);
@@ -266,7 +288,7 @@ public final class DraftCommands {
 
     private static int cylEdit(CommandContext<CommandSourceStack> ctx, int height) {
         try {
-            ServerPlayer p = editor(ctx);
+            ServerPlayer p = editor(ctx, EditAccess.Tool.SHAPES);
             if (p == null) return 0;
             int r = IntegerArgumentType.getInteger(ctx, "radius");
             return DraftEdit.cylinder(p, (ServerLevel) p.level(), BlockStateArgument.getBlock(ctx, "block").getState(), r, height);
@@ -275,7 +297,7 @@ public final class DraftCommands {
 
     private static int shapeEdit(CommandContext<CommandSourceStack> ctx, DraftShapes.Shape shape, boolean hollow, int height) {
         try {
-            ServerPlayer p = editor(ctx);
+            ServerPlayer p = editor(ctx, EditAccess.Tool.SHAPES);
             if (p == null) return 0;
             int size = IntegerArgumentType.getInteger(ctx, "size");
             return DraftShapes.buildShape(p, (ServerLevel) p.level(), BlockStateArgument.getBlock(ctx, "block").getState(),
@@ -285,7 +307,7 @@ public final class DraftCommands {
 
     private static int lineEdit(CommandContext<CommandSourceStack> ctx, int thickness) {
         try {
-            ServerPlayer p = editor(ctx);
+            ServerPlayer p = editor(ctx, EditAccess.Tool.SHAPES);
             if (p == null) return 0;
             return DraftShapes.line(p, (ServerLevel) p.level(), BlockStateArgument.getBlock(ctx, "block").getState(), thickness);
         } catch (Exception e) { return err(ctx, e); }
@@ -293,7 +315,7 @@ public final class DraftCommands {
 
     private static int centerEdit(CommandContext<CommandSourceStack> ctx) {
         try {
-            ServerPlayer p = editor(ctx);
+            ServerPlayer p = editor(ctx, EditAccess.Tool.MEASURE);
             if (p == null) return 0;
             return DraftShapes.findLineCenter(p, (ServerLevel) p.level());
         } catch (Exception e) { return err(ctx, e); }
@@ -301,7 +323,7 @@ public final class DraftCommands {
 
     private static int tapeEdit(CommandContext<CommandSourceStack> ctx) {
         try {
-            ServerPlayer p = editor(ctx);
+            ServerPlayer p = editor(ctx, EditAccess.Tool.MEASURE);
             if (p == null) return 0;
             return DraftMeasure.tape(p, (ServerLevel) p.level());
         } catch (Exception e) { return err(ctx, e); }
@@ -309,7 +331,7 @@ public final class DraftCommands {
 
     private static int tapeClear(CommandContext<CommandSourceStack> ctx) {
         try {
-            ServerPlayer p = editor(ctx);
+            ServerPlayer p = editor(ctx, EditAccess.Tool.MEASURE);
             if (p == null) return 0;
             DraftMeasure.clearTape(p, (ServerLevel) p.level());
             msg(ctx, "Measuring tape cleared.");
@@ -319,7 +341,7 @@ public final class DraftCommands {
 
     private static int copyEdit(CommandContext<CommandSourceStack> ctx) {
         try {
-            ServerPlayer p = editor(ctx);
+            ServerPlayer p = editor(ctx, EditAccess.Tool.EDIT);
             if (p == null) return 0;
             return DraftEdit.copy(p, (ServerLevel) p.level());
         } catch (Exception e) { return err(ctx, e); }
@@ -327,7 +349,7 @@ public final class DraftCommands {
 
     private static int cutEdit(CommandContext<CommandSourceStack> ctx) {
         try {
-            ServerPlayer p = editor(ctx);
+            ServerPlayer p = editor(ctx, EditAccess.Tool.EDIT);
             if (p == null) return 0;
             return DraftEdit.cut(p, (ServerLevel) p.level());
         } catch (Exception e) { return err(ctx, e); }
@@ -335,7 +357,7 @@ public final class DraftCommands {
 
     private static int pasteEdit(CommandContext<CommandSourceStack> ctx) {
         try {
-            ServerPlayer p = editor(ctx);
+            ServerPlayer p = editor(ctx, EditAccess.Tool.EDIT);
             if (p == null) return 0;
             return DraftEdit.paste(p, (ServerLevel) p.level());
         } catch (Exception e) { return err(ctx, e); }
@@ -343,7 +365,7 @@ public final class DraftCommands {
 
     private static int stackEdit(CommandContext<CommandSourceStack> ctx, int count) {
         try {
-            ServerPlayer p = editor(ctx);
+            ServerPlayer p = editor(ctx, EditAccess.Tool.EDIT);
             if (p == null) return 0;
             return DraftEdit.stack(p, (ServerLevel) p.level(), count);
         } catch (Exception e) { return err(ctx, e); }
@@ -351,7 +373,7 @@ public final class DraftCommands {
 
     private static int moveEdit(CommandContext<CommandSourceStack> ctx, int count) {
         try {
-            ServerPlayer p = editor(ctx);
+            ServerPlayer p = editor(ctx, EditAccess.Tool.EDIT);
             if (p == null) return 0;
             return DraftEdit.move(p, (ServerLevel) p.level(), count);
         } catch (Exception e) { return err(ctx, e); }

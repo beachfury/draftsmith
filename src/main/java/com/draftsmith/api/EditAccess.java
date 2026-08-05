@@ -20,6 +20,16 @@ public interface EditAccess {
     /** May this player use the editor at all (commands, wand, brushes, GUIs)? */
     default boolean canUse(ServerPlayer p) { return true; }
 
+    /** The editor's tool groups — the granularity servers grant permissions at. */
+    enum Tool { WAND, EDIT, SHAPES, BRUSH, MEASURE }
+
+    /**
+     * May this player use this tool group? Defaults to {@link #canUse} (all tools together) —
+     * the built-in provider splits them into draftsmith.wand/edit/shapes/brush/measure nodes
+     * when a permissions mod is installed.
+     */
+    default boolean canUse(ServerPlayer p, Tool tool) { return canUse(p); }
+
     /**
      * Unclamped editing. Computed once per stroke and passed back into
      * {@link #canEdit(ServerPlayer, boolean, int, int, int)} so implementations can skip
