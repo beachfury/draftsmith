@@ -56,6 +56,7 @@ public final class DraftBrush {
         public boolean surface = true;  // paint the top solid block of each column
         public String mask = "";        // only repaint this block id ("" = anything)
         public final List<String> palette = new ArrayList<>();
+        public final List<String> protect = new ArrayList<>(); // never paint over these block ids
     }
 
     private DraftBrush() {}
@@ -93,6 +94,8 @@ public final class DraftBrush {
         c.mask = t.getStringOr("mask", "");
         String pal = t.getStringOr("palette", "");
         if (!pal.isEmpty()) for (String id : pal.split(",")) if (!id.isBlank()) c.palette.add(id);
+        String prot = t.getStringOr("protect", "");
+        if (!prot.isEmpty()) for (String id : prot.split(",")) if (!id.isBlank()) c.protect.add(id);
         return c;
     }
 
@@ -107,6 +110,7 @@ public final class DraftBrush {
         t.putBoolean("surface", c.surface);
         t.putString("mask", c.mask);
         t.putString("palette", String.join(",", c.palette));
+        t.putString("protect", String.join(",", c.protect));
         root.remove(LEGACY_TAG); // migrate legacy brushes to the new tag on first write
         root.put(TAG, t);
         s.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
@@ -177,6 +181,9 @@ public final class DraftBrush {
             return;
         }
         Block maskBlock = c.mask.isEmpty() ? null : Compat.block(c.mask);
+        // The protected list — blocks a stroke must never paint over, whatever else it does.
+        java.util.Set<Block> shield = new java.util.HashSet<>();
+        for (String id : c.protect) { Block b = Compat.block(id); if (b != Blocks.AIR) shield.add(b); }
         boolean admin = access().isAdmin(sp);
         int r = c.size;
         List<DraftEdit.Write> writes = new ArrayList<>();
@@ -199,12 +206,13 @@ public final class DraftBrush {
                     BlockState cur = level.getBlockState(new BlockPos(x, y, z));
                     if (cur.isAir()) continue;
                     if (maskBlock != null && !cur.is(maskBlock)) continue;
+                    if (shield.contains(cur.getBlock())) continue;
                     if (DraftEdit.canEdit(sp, admin, x, y, z))
                         writes.add(new DraftEdit.Write(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState()));
                 }
                 if (maskBlock == null && ground != null && ground.surface() != null) {
                     BlockState cur = level.getBlockState(new BlockPos(x, ground.y(), z));
-                    if (!cur.equals(ground.surface()) && DraftEdit.canEdit(sp, admin, x, ground.y(), z))
+                    if (!cur.equals(ground.surface()) && !shield.contains(cur.getBlock()) && DraftEdit.canEdit(sp, admin, x, ground.y(), z))
                         writes.add(new DraftEdit.Write(new BlockPos(x, ground.y(), z), ground.surface()));
                     // refill anything dug out below the floor
                     for (int y = ground.y() - 1; y >= Math.max(access().minY(level), ground.y() - 8); y--) {
@@ -219,7 +227,7 @@ public final class DraftBrush {
 
         // ---- terraformers: raise / lower / smooth ----
         if (c.type == Type.RAISE || c.type == Type.LOWER || c.type == Type.SMOOTH) {
-            terraform(sp, level, c, center, admin, r, palette, writes);
+            terraform(sp, level, c, center, admin, r, palette, shield, writes);
             DraftEdit.commit(sp, level, writes, brushVerb(c.type));
             return;
         }
@@ -240,7 +248,7 @@ public final class DraftBrush {
                         BlockState cur = level.getBlockState(wp);
                         if (cur.isAir() || !cur.getFluidState().isEmpty()) continue;
                         if (level.getBlockState(wp.relative(face)).isAir())
-                            addWrite(writes, sp, level, admin, wp, cur, maskBlock, palette, c, false, chosen);
+                            addWrite(writes, sp, level, admin, wp, cur, maskBlock, shield, palette, c, false, chosen);
                         break;
                     }
                 }
@@ -255,7 +263,7 @@ public final class DraftBrush {
                         BlockState cur = level.getBlockState(wp);
                         if (cur.isAir() || !cur.getFluidState().isEmpty()) continue;
                         if (level.getBlockState(wp.above()).isAir())
-                            addWrite(writes, sp, level, admin, wp, cur, maskBlock, palette, c, true, chosen);
+                            addWrite(writes, sp, level, admin, wp, cur, maskBlock, shield, palette, c, true, chosen);
                         break;
                     }
                 }
@@ -294,7 +302,7 @@ public final class DraftBrush {
                 double chance = c.density / 100.0;
                 if (c.fade) chance *= Math.max(0, 1.0 - (dist / (r + 0.5)) * (dist / (r + 0.5)));
                 if (RNG.nextDouble() > chance) continue;
-                addWrite(writes, sp, level, admin, wp, level.getBlockState(wp), maskBlock, palette, c, false,
+                addWrite(writes, sp, level, admin, wp, level.getBlockState(wp), maskBlock, shield, palette, c, false,
                         pool.get(RNG.nextInt(pool.size())));
             }
             DraftEdit.commit(sp, level, writes, brushVerb(c.type));
@@ -320,7 +328,7 @@ public final class DraftBrush {
                     // a wall face is a face exposed to air on the side you aim at — the lawn in
                     // front of the wall fails this test, so the ground never gets wall texture
                     if (level.getBlockState(wp.relative(face)).isAir())
-                        addWrite(writes, sp, level, admin, wp, cur, maskBlock, palette, c, false, null);
+                        addWrite(writes, sp, level, admin, wp, cur, maskBlock, shield, palette, c, false, null);
                     break;
                 }
             }
@@ -350,7 +358,7 @@ public final class DraftBrush {
                     BlockState cur = level.getBlockState(p);
                     if (cur.isAir() || !cur.getFluidState().isEmpty()) continue;
                     if (scatter && !level.getBlockState(p.above()).isAir()) break; // covered — skip column
-                    addWrite(writes, sp, level, admin, p, cur, maskBlock, palette, c, true, null);
+                    addWrite(writes, sp, level, admin, p, cur, maskBlock, shield, palette, c, true, null);
                     break;
                 }
             } else {
@@ -365,7 +373,7 @@ public final class DraftBrush {
                     if (c.fade) ballChance *= Math.max(0, 1.0 - (d3 / (r + 0.5)) * (d3 / (r + 0.5)));
                     if (RNG.nextDouble() > ballChance) continue;
                     BlockPos p = center.offset(dx, dy, dz);
-                    addWrite(writes, sp, level, admin, p, level.getBlockState(p), maskBlock, palette, c, false, null);
+                    addWrite(writes, sp, level, admin, p, level.getBlockState(p), maskBlock, shield, palette, c, false, null);
                 }
             }
         }
@@ -373,10 +381,11 @@ public final class DraftBrush {
     }
 
     private static void addWrite(List<DraftEdit.Write> writes, ServerPlayer sp, ServerLevel level, boolean admin,
-                                 BlockPos p, BlockState cur, Block maskBlock, List<BlockState> palette, Config c,
-                                 boolean surfaceMode, BlockState forced) {
+                                 BlockPos p, BlockState cur, Block maskBlock, java.util.Set<Block> shield,
+                                 List<BlockState> palette, Config c, boolean surfaceMode, BlockState forced) {
         if (!DraftEdit.canEdit(sp, admin, p.getX(), p.getY(), p.getZ())) return;
         if (maskBlock != null && !cur.is(maskBlock)) return;
+        if (shield.contains(cur.getBlock())) return; // protected — never painted over (or decorated on top)
         if (c.type == Type.ERASE) {
             if (!cur.isAir()) writes.add(new DraftEdit.Write(p, Blocks.AIR.defaultBlockState()));
             return;
@@ -419,7 +428,8 @@ public final class DraftBrush {
 
     /** Raise mounds terrain up, Lower dips it, Smooth averages each column toward its 3x3 mean. */
     private static void terraform(ServerPlayer sp, ServerLevel level, Config c, BlockPos center,
-                                  boolean admin, int r, List<BlockState> palette, List<DraftEdit.Write> writes) {
+                                  boolean admin, int r, List<BlockState> palette,
+                                  java.util.Set<Block> shield, List<DraftEdit.Write> writes) {
         int peak = Math.max(1, r / 2);
         for (int dx = -r; dx <= r; dx++) for (int dz = -r; dz <= r; dz++) {
             double dist = Math.sqrt(dx * dx + dz * dz);
@@ -428,6 +438,7 @@ public final class DraftBrush {
             int sy = surfaceY(level, x, z, center.getY(), r + 8);
             if (sy == Integer.MIN_VALUE) continue;
             BlockState surf = level.getBlockState(new BlockPos(x, sy, z));
+            if (shield.contains(surf.getBlock())) continue; // protected surface — leave the column alone
 
             int target = sy;
             if (c.type == Type.SMOOTH) {
@@ -453,9 +464,11 @@ public final class DraftBrush {
                 }
             } else if (target < sy) {             // carve down, then re-cap the new surface
                 for (int y = sy; y > target; y--)
-                    if (DraftEdit.canEdit(sp, admin, x, y, z))
+                    if (!shield.contains(level.getBlockState(new BlockPos(x, y, z)).getBlock())
+                            && DraftEdit.canEdit(sp, admin, x, y, z))
                         writes.add(new DraftEdit.Write(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState()));
-                if (DraftEdit.canEdit(sp, admin, x, target, z)) {
+                if (!shield.contains(level.getBlockState(new BlockPos(x, target, z)).getBlock())
+                        && DraftEdit.canEdit(sp, admin, x, target, z)) {
                     BlockState cap = !palette.isEmpty() ? palette.get(RNG.nextInt(palette.size())) : surf;
                     writes.add(new DraftEdit.Write(new BlockPos(x, target, z), cap));
                 }

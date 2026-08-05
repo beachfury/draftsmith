@@ -28,6 +28,13 @@ any Fabric server can use it on any world — no plot world required. The code i
 - **Ops-only by default.** Non-ops see nothing until an admin adds them to `editors` in
   `config/draftsmith.properties` (or a host mod supplies its own rules). A `worlds` list can restrict
   the editor to specific dimensions.
+- **NEW: the protected list.** A second 9-slot row in the Brushes screen — the mask in reverse. Load
+  it with blocks the brush must **never paint over** (up to nine), and everything else repaints as
+  normal. The existing mask answers "only repaint X"; the protected list answers "repaint anything
+  *except* these" — re-texture a mixed floor without eating the carpet, or terraform around a path
+  without touching it. Applies to every brush type: strokes, Wall, Gradient, Blend, Erase (protected
+  blocks survive the ground restore) and the Raise/Lower/Smooth terraformers (a protected surface
+  freezes its whole column). Stored on the brush item like every other setting.
 - **The `EditAccess` API** — one interface a host mod implements to decide where the editor runs, who
   may use it, and whether each individual block write is allowed. FabricPlots 0.5.0 uses it to jail
   the editor to plot ownership, unchanged from 0.4.0.
