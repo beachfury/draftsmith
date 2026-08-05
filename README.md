@@ -74,7 +74,7 @@ Everything also has a GUI button — commands and screens do the same things.
 | Command | What it does |
 | --- | --- |
 | `/draft` | Open the editor hub |
-| `/draft editwand` | Get the selection wand (right-click corners 1/2 alternately) |
+| `/draft wand` | Get the selection wand (right-click corners 1/2 alternately) |
 | `/draft brush` | Get a paint brush |
 | `/draft pos1` / `pos2` | Set a corner where you stand |
 | `/draft set <block>` | Fill the selection |
@@ -108,9 +108,11 @@ DraftSmithApi.setAccess(new EditAccess() {
 });
 ```
 
-`DraftCommands.attach(rootBuilder, buildContext)` chains every editor subcommand onto your own
-command root. [FabricPlots](https://github.com/beachfury/fabricplots) does exactly this — it bundles
-DraftSmith, jails it to plot ownership, and serves the same tools as `/plot <subcommand>`.
+`DraftCommands.attach(rootBuilder, buildContext)` chains the editor subcommands onto your own
+command root; an overload takes a skip-set to leave some out. The selection wand is the one tool
+that stays DraftSmith's own — players always get it with `/draft wand`, never from a host root.
+[FabricPlots](https://github.com/beachfury/fabricplots) does exactly this — it bundles DraftSmith,
+jails it to plot ownership, and serves the same tools as `/plot <subcommand>`.
 
 ## Building
 
