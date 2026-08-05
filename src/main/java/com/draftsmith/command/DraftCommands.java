@@ -38,6 +38,10 @@ public final class DraftCommands {
         LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("draft")
                 .requires(src -> src.getPlayer() != null && access().canUse(src.getPlayer()))
                 .executes(DraftCommands::editGui) // bare /draft opens the editor hub
+                // The selection wand is DraftSmith's own tool — /draft wand only, never attached
+                // to a host root ("editwand" kept as a quiet alias for FabricPlots muscle memory).
+                .then(Commands.literal("wand").executes(DraftCommands::editwand))
+                .then(Commands.literal("editwand").executes(DraftCommands::editwand))
                 .then(Commands.literal("reload")
                         .requires(src -> src.getPlayer() == null || access().isAdmin(src.getPlayer()))
                         .executes(ctx -> {
@@ -49,72 +53,84 @@ public final class DraftCommands {
         d.register(root);
     }
 
-    /** Chain the editor subcommands onto any root builder (call before dispatcher.register). */
+    /** Chain every editor subcommand onto any root builder (call before dispatcher.register). */
     public static void attach(LiteralArgumentBuilder<CommandSourceStack> root, CommandBuildContext bc) {
-        root.then(Commands.literal("editwand").executes(DraftCommands::editwand))
-                .then(Commands.literal("brush").executes(DraftCommands::brush))
-                .then(Commands.literal("pos1").executes(DraftCommands::pos1))
-                .then(Commands.literal("pos2").executes(DraftCommands::pos2))
-                .then(Commands.literal("set")
-                        .then(Commands.argument("block", BlockStateArgument.block(bc))
-                                .executes(DraftCommands::setBlocks)))
-                .then(Commands.literal("replace")
-                        .then(Commands.argument("from", BlockStateArgument.block(bc))
-                                .then(Commands.argument("to", BlockStateArgument.block(bc))
-                                        .executes(DraftCommands::replaceBlocks))))
-                .then(Commands.literal("edit").executes(DraftCommands::editGui))
-                .then(Commands.literal("measure").executes(DraftCommands::measureGui))
-                .then(Commands.literal("undo").executes(DraftCommands::undoEdit))
-                .then(Commands.literal("redo").executes(DraftCommands::redoEdit))
-                .then(Commands.literal("copy").executes(DraftCommands::copyEdit))
-                .then(Commands.literal("cut").executes(DraftCommands::cutEdit))
-                .then(Commands.literal("paste").executes(DraftCommands::pasteEdit))
-                .then(Commands.literal("stack")
-                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
-                                .executes(ctx -> stackEdit(ctx, IntegerArgumentType.getInteger(ctx, "count")))))
-                .then(Commands.literal("move")
-                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 256))
-                                .executes(ctx -> moveEdit(ctx, IntegerArgumentType.getInteger(ctx, "count")))))
-                .then(Commands.literal("walls")
-                        .then(Commands.argument("block", BlockStateArgument.block(bc))
-                                .executes(DraftCommands::wallsEdit)))
-                .then(Commands.literal("sphere")
-                        .then(Commands.argument("block", BlockStateArgument.block(bc))
-                                .then(Commands.argument("radius", IntegerArgumentType.integer(1, 32))
-                                        .executes(ctx -> sphereEdit(ctx, false)))))
-                .then(Commands.literal("hsphere")
-                        .then(Commands.argument("block", BlockStateArgument.block(bc))
-                                .then(Commands.argument("radius", IntegerArgumentType.integer(1, 32))
-                                        .executes(ctx -> sphereEdit(ctx, true)))))
-                .then(Commands.literal("cyl")
-                        .then(Commands.argument("block", BlockStateArgument.block(bc))
-                                .then(Commands.argument("radius", IntegerArgumentType.integer(1, 32))
-                                        .executes(ctx -> cylEdit(ctx, 1))
-                                        .then(Commands.argument("height", IntegerArgumentType.integer(1, 256))
-                                                .executes(ctx -> cylEdit(ctx, IntegerArgumentType.getInteger(ctx, "height")))))))
-                .then(Commands.literal("disc")
-                        .then(Commands.argument("block", BlockStateArgument.block(bc))
-                                .then(Commands.argument("size", IntegerArgumentType.integer(1, 256))
-                                        .executes(ctx -> shapeEdit(ctx, DraftShapes.Shape.CIRCLE, false, 1))
-                                        .then(Commands.argument("height", IntegerArgumentType.integer(1, 128))
-                                                .executes(ctx -> shapeEdit(ctx, DraftShapes.Shape.CIRCLE, false,
-                                                        IntegerArgumentType.getInteger(ctx, "height")))))))
-                .then(Commands.literal("ring")
-                        .then(Commands.argument("block", BlockStateArgument.block(bc))
-                                .then(Commands.argument("size", IntegerArgumentType.integer(1, 256))
-                                        .executes(ctx -> shapeEdit(ctx, DraftShapes.Shape.CIRCLE, true, 1))
-                                        .then(Commands.argument("height", IntegerArgumentType.integer(1, 128))
-                                                .executes(ctx -> shapeEdit(ctx, DraftShapes.Shape.CIRCLE, true,
-                                                        IntegerArgumentType.getInteger(ctx, "height")))))))
-                .then(Commands.literal("line")
-                        .then(Commands.argument("block", BlockStateArgument.block(bc))
-                                .executes(ctx -> lineEdit(ctx, 1))
-                                .then(Commands.argument("thickness", IntegerArgumentType.integer(1, 8))
-                                        .executes(ctx -> lineEdit(ctx, IntegerArgumentType.getInteger(ctx, "thickness"))))))
-                .then(Commands.literal("center").executes(DraftCommands::centerEdit))
-                .then(Commands.literal("tape")
-                        .executes(DraftCommands::tapeEdit)
-                        .then(Commands.literal("clear").executes(DraftCommands::tapeClear)));
+        attach(root, bc, java.util.Set.of());
+    }
+
+    /**
+     * Chain the editor subcommands onto any root builder, skipping the named ones — for hosts
+     * that keep some tools under DraftSmith's own root instead of duplicating them (e.g.
+     * {@code attach(root, bc, Set.of("brush"))}). Skipping "tape" removes "tape clear" with it.
+     * The wand-getting command is NOT part of this set — it is /draft wand, DraftSmith's own.
+     */
+    public static void attach(LiteralArgumentBuilder<CommandSourceStack> root, CommandBuildContext bc,
+                              java.util.Set<String> skip) {
+        java.util.function.Consumer<LiteralArgumentBuilder<CommandSourceStack>> add =
+                node -> { if (!skip.contains(node.getLiteral())) root.then(node); };
+        add.accept(Commands.literal("brush").executes(DraftCommands::brush));
+        add.accept(Commands.literal("pos1").executes(DraftCommands::pos1));
+        add.accept(Commands.literal("pos2").executes(DraftCommands::pos2));
+        add.accept(Commands.literal("set")
+                .then(Commands.argument("block", BlockStateArgument.block(bc))
+                        .executes(DraftCommands::setBlocks)));
+        add.accept(Commands.literal("replace")
+                .then(Commands.argument("from", BlockStateArgument.block(bc))
+                        .then(Commands.argument("to", BlockStateArgument.block(bc))
+                                .executes(DraftCommands::replaceBlocks))));
+        add.accept(Commands.literal("edit").executes(DraftCommands::editGui));
+        add.accept(Commands.literal("measure").executes(DraftCommands::measureGui));
+        add.accept(Commands.literal("undo").executes(DraftCommands::undoEdit));
+        add.accept(Commands.literal("redo").executes(DraftCommands::redoEdit));
+        add.accept(Commands.literal("copy").executes(DraftCommands::copyEdit));
+        add.accept(Commands.literal("cut").executes(DraftCommands::cutEdit));
+        add.accept(Commands.literal("paste").executes(DraftCommands::pasteEdit));
+        add.accept(Commands.literal("stack")
+                .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
+                        .executes(ctx -> stackEdit(ctx, IntegerArgumentType.getInteger(ctx, "count")))));
+        add.accept(Commands.literal("move")
+                .then(Commands.argument("count", IntegerArgumentType.integer(1, 256))
+                        .executes(ctx -> moveEdit(ctx, IntegerArgumentType.getInteger(ctx, "count")))));
+        add.accept(Commands.literal("walls")
+                .then(Commands.argument("block", BlockStateArgument.block(bc))
+                        .executes(DraftCommands::wallsEdit)));
+        add.accept(Commands.literal("sphere")
+                .then(Commands.argument("block", BlockStateArgument.block(bc))
+                        .then(Commands.argument("radius", IntegerArgumentType.integer(1, 32))
+                                .executes(ctx -> sphereEdit(ctx, false)))));
+        add.accept(Commands.literal("hsphere")
+                .then(Commands.argument("block", BlockStateArgument.block(bc))
+                        .then(Commands.argument("radius", IntegerArgumentType.integer(1, 32))
+                                .executes(ctx -> sphereEdit(ctx, true)))));
+        add.accept(Commands.literal("cyl")
+                .then(Commands.argument("block", BlockStateArgument.block(bc))
+                        .then(Commands.argument("radius", IntegerArgumentType.integer(1, 32))
+                                .executes(ctx -> cylEdit(ctx, 1))
+                                .then(Commands.argument("height", IntegerArgumentType.integer(1, 256))
+                                        .executes(ctx -> cylEdit(ctx, IntegerArgumentType.getInteger(ctx, "height")))))));
+        add.accept(Commands.literal("disc")
+                .then(Commands.argument("block", BlockStateArgument.block(bc))
+                        .then(Commands.argument("size", IntegerArgumentType.integer(1, 256))
+                                .executes(ctx -> shapeEdit(ctx, DraftShapes.Shape.CIRCLE, false, 1))
+                                .then(Commands.argument("height", IntegerArgumentType.integer(1, 128))
+                                        .executes(ctx -> shapeEdit(ctx, DraftShapes.Shape.CIRCLE, false,
+                                                IntegerArgumentType.getInteger(ctx, "height")))))));
+        add.accept(Commands.literal("ring")
+                .then(Commands.argument("block", BlockStateArgument.block(bc))
+                        .then(Commands.argument("size", IntegerArgumentType.integer(1, 256))
+                                .executes(ctx -> shapeEdit(ctx, DraftShapes.Shape.CIRCLE, true, 1))
+                                .then(Commands.argument("height", IntegerArgumentType.integer(1, 128))
+                                        .executes(ctx -> shapeEdit(ctx, DraftShapes.Shape.CIRCLE, true,
+                                                IntegerArgumentType.getInteger(ctx, "height")))))));
+        add.accept(Commands.literal("line")
+                .then(Commands.argument("block", BlockStateArgument.block(bc))
+                        .executes(ctx -> lineEdit(ctx, 1))
+                        .then(Commands.argument("thickness", IntegerArgumentType.integer(1, 8))
+                                .executes(ctx -> lineEdit(ctx, IntegerArgumentType.getInteger(ctx, "thickness"))))));
+        add.accept(Commands.literal("center").executes(DraftCommands::centerEdit));
+        add.accept(Commands.literal("tape")
+                .executes(DraftCommands::tapeEdit)
+                .then(Commands.literal("clear").executes(DraftCommands::tapeClear)));
     }
 
     // ---- guards ----------------------------------------------------------
@@ -155,7 +171,7 @@ public final class DraftCommands {
             if (p == null) return 0;
             String root = access().commandRoot();
             p.addItem(DraftEdit.createWand());
-            msg(ctx, "Editor wand given. Right-click a block for corner 1, right-click again for corner 2 (or use /" + root + " pos1 · /" + root + " pos2). Then /" + root + " set <block> or /" + root + " replace <from> <to>.");
+            msg(ctx, "Wand given. Right-click a block for corner 1, right-click again for corner 2 (or use /" + root + " pos1 · /" + root + " pos2). Then /" + root + " set <block> or /" + root + " replace <from> <to>.");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
