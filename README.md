@@ -65,7 +65,30 @@ command doesn't even appear for them.
 | `editors` | *(blank)* | Comma-separated player names allowed to use the editor without being op |
 | `worlds` | *(blank)* | Comma-separated dimension ids the editor works in (blank = all worlds) |
 
-`/draft reload` applies changes live.
+`/draft reload` applies changes live (players see command changes immediately).
+
+### Permission nodes (LuckPerms and friends)
+
+With a permissions mod installed (anything implementing
+[fabric-permissions-api](https://github.com/lucko/fabric-permissions-api) — LuckPerms, PlayerRoles…),
+DraftSmith checks **per-tool nodes**, so tiered servers can grant tools per rank. Nodes a
+permissions mod doesn't define fall back to the ops + `editors` behavior above — installing
+LuckPerms changes nothing until you actually set a node.
+
+| Node | Grants |
+| --- | --- |
+| `draftsmith.use` | The gate: see `/draft`, open the hub, set corners, undo/redo |
+| `draftsmith.wand` | The selection wand |
+| `draftsmith.edit` | Fill/replace/walls + clipboard (copy/cut/paste/stack/move) |
+| `draftsmith.shapes` | Shapes screen and shape commands |
+| `draftsmith.brush` | Paint brushes — getting one, painting, the config screen |
+| `draftsmith.measure` | Measuring tape and find-center |
+| `draftsmith.admin` | `/draft reload` + unclamped editing |
+
+Example tiers: give **Member** `draftsmith.use` + `draftsmith.measure`, **Builder** adds
+`draftsmith.wand` + `draftsmith.edit`, **Artist** adds `draftsmith.shapes` + `draftsmith.brush`,
+staff get `draftsmith.*`. Hub buttons for tools a player can't use simply don't appear, and a
+brush or wand in the wrong hands does nothing.
 
 ## Commands
 

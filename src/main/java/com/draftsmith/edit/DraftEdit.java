@@ -104,7 +104,7 @@ public final class DraftEdit {
             if (!access().isActiveDimension(world)) return InteractionResult.PASS;
             if (!isWand(player.getItemInHand(hand))) return InteractionResult.PASS;
             if (player instanceof ServerPlayer sp) {
-                if (!access().canUse(sp)) return InteractionResult.PASS;
+                if (!access().canUse(sp, EditAccess.Tool.WAND)) return InteractionResult.PASS;
                 boolean second = NEXT_IS_POS2.getOrDefault(sp.getUUID(), false);
                 mark(sp, hit.getBlockPos(), !second);
                 NEXT_IS_POS2.put(sp.getUUID(), !second);

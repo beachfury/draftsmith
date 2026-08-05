@@ -49,42 +49,54 @@ public final class DraftEditGui {
         final ServerLevel level = (ServerLevel) sp.level();
         final int amt = amount(id);
         for (int i = 0; i < 36; i++) gui.setSlot(i, filler());
+        // Buttons for tool groups the player lacks permission for stay filler glass.
+        var access = com.draftsmith.api.DraftSmithApi.access();
+        boolean edit = access.canUse(sp, com.draftsmith.api.EditAccess.Tool.EDIT);
+        boolean shapes = access.canUse(sp, com.draftsmith.api.EditAccess.Tool.SHAPES);
+        boolean brush = access.canUse(sp, com.draftsmith.api.EditAccess.Tool.BRUSH);
+        boolean measure = access.canUse(sp, com.draftsmith.api.EditAccess.Tool.MEASURE);
 
         // Row 1 — selection, clipboard, safety.
         gui.setSlot(0, cornerBtn(sp, true));
         gui.setSlot(1, cornerBtn(sp, false));
-        gui.setSlot(3, btn(Items.PAPER, "Copy selection", (i, t, a, g) -> DraftEdit.copy(sp, level)));
-        gui.setSlot(4, btn(Items.SHEARS, "Cut selection", (i, t, a, g) -> DraftEdit.cut(sp, level)));
-        gui.setSlot(5, btn(Items.SLIME_BALL, "Paste here", (i, t, a, g) -> DraftEdit.paste(sp, level)));
+        if (edit) {
+            gui.setSlot(3, btn(Items.PAPER, "Copy selection", (i, t, a, g) -> DraftEdit.copy(sp, level)));
+            gui.setSlot(4, btn(Items.SHEARS, "Cut selection", (i, t, a, g) -> DraftEdit.cut(sp, level)));
+            gui.setSlot(5, btn(Items.SLIME_BALL, "Paste here", (i, t, a, g) -> DraftEdit.paste(sp, level)));
+        }
         gui.setSlot(7, btn(Items.CLOCK, "Undo last edit", (i, t, a, g) -> DraftEdit.undo(sp, level)));
         gui.setSlot(8, btn(Items.COMPASS, "Redo", (i, t, a, g) -> DraftEdit.redo(sp, level)));
 
         // Row 2 — direct build ops + transforms with their amount knob.
-        gui.setSlot(9, btn(Items.STONE, "Fill selection (held block)", (i, t, a, g) -> withBlock(sp, bs -> DraftEdit.set(sp, level, bs))));
-        gui.setSlot(10, btn(Items.BRICKS, "Walls around selection", (i, t, a, g) -> withBlock(sp, bs -> DraftEdit.walls(sp, level, bs))));
-        gui.setSlot(12, btn(Items.REPEATER, "Stack ×" + amt + " (facing)", (i, t, a, g) -> DraftEdit.stack(sp, level, amount(id))));
-        gui.setSlot(13, btn(Items.PISTON, "Move " + amt + " (facing)", (i, t, a, g) -> DraftEdit.move(sp, level, amount(id))));
-        gui.setSlot(15, btn(Items.REDSTONE, "Amount −1", (i, t, a, g) -> { AMOUNT.put(id, Math.max(1, amount(id) - 1)); render(gui, sp); }));
-        gui.setSlot(16, new GuiElementBuilder(Items.PAPER).setName(Component.literal("Amount: " + amt))
-                .addLoreLine(Component.literal("Used by Stack and Move"))
-                .setCount(Math.max(1, Math.min(64, amt))).build());
-        gui.setSlot(17, btn(Items.EMERALD, "Amount +1", (i, t, a, g) -> { AMOUNT.put(id, Math.min(64, amount(id) + 1)); render(gui, sp); }));
+        if (edit) {
+            gui.setSlot(9, btn(Items.STONE, "Fill selection (held block)", (i, t, a, g) -> withBlock(sp, bs -> DraftEdit.set(sp, level, bs))));
+            gui.setSlot(10, btn(Items.BRICKS, "Walls around selection", (i, t, a, g) -> withBlock(sp, bs -> DraftEdit.walls(sp, level, bs))));
+            gui.setSlot(12, btn(Items.REPEATER, "Stack ×" + amt + " (facing)", (i, t, a, g) -> DraftEdit.stack(sp, level, amount(id))));
+            gui.setSlot(13, btn(Items.PISTON, "Move " + amt + " (facing)", (i, t, a, g) -> DraftEdit.move(sp, level, amount(id))));
+            gui.setSlot(15, btn(Items.REDSTONE, "Amount −1", (i, t, a, g) -> { AMOUNT.put(id, Math.max(1, amount(id) - 1)); render(gui, sp); }));
+            gui.setSlot(16, new GuiElementBuilder(Items.PAPER).setName(Component.literal("Amount: " + amt))
+                    .addLoreLine(Component.literal("Used by Stack and Move"))
+                    .setCount(Math.max(1, Math.min(64, amt))).build());
+            gui.setSlot(17, btn(Items.EMERALD, "Amount +1", (i, t, a, g) -> { AMOUNT.put(id, Math.min(64, amount(id) + 1)); render(gui, sp); }));
+        }
 
         // Row 3 — the sub-screens + everyday quick buttons.
-        gui.setSlot(18, new GuiElementBuilder(Items.SNOWBALL)
+        if (shapes) gui.setSlot(18, new GuiElementBuilder(Items.SNOWBALL)
                 .setName(Component.literal("Shapes…"))
                 .addLoreLine(Component.literal("Circle, square, sphere, cylinder, pyramid, line"))
                 .setCallback((i, t, a, g) -> DraftShapesGui.open(sp)).build());
-        gui.setSlot(20, new GuiElementBuilder(Items.BRUSH)
+        if (brush) gui.setSlot(20, new GuiElementBuilder(Items.BRUSH)
                 .setName(Component.literal("Brushes…"))
                 .addLoreLine(Component.literal("Splatter, round, overlay, spray, erase — paint with a brush"))
                 .setCallback((i, t, a, g) -> DraftBrushGui.open(sp)).build());
-        gui.setSlot(22, new GuiElementBuilder(Items.OAK_SIGN)
-                .setName(Component.literal("Measure…"))
-                .addLoreLine(Component.literal("Selection size, find center, measuring tape"))
-                .setCallback((i, t, a, g) -> DraftMeasureGui.open(sp)).build());
-        gui.setSlot(24, btn(Items.GOLD_INGOT, "Find center of line",
-                (i, t, a, g) -> DraftShapes.findLineCenter(sp, level)));
+        if (measure) {
+            gui.setSlot(22, new GuiElementBuilder(Items.OAK_SIGN)
+                    .setName(Component.literal("Measure…"))
+                    .addLoreLine(Component.literal("Selection size, find center, measuring tape"))
+                    .setCallback((i, t, a, g) -> DraftMeasureGui.open(sp)).build());
+            gui.setSlot(24, btn(Items.GOLD_INGOT, "Find center of line",
+                    (i, t, a, g) -> DraftShapes.findLineCenter(sp, level)));
+        }
         gui.setSlot(26, textureToggle(sp, () -> render(gui, sp)));
 
         // Row 4 — held-block indicator.

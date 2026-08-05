@@ -17,5 +17,8 @@
     "fabric-api": "*",
     "minecraft": "*",
     "sgui": "*"
+  },
+  "suggests": {
+    "fabric-permissions-api-v0": "*"
   }
 }

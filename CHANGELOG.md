@@ -34,6 +34,13 @@ any Fabric server can use it on any world — no plot world required. The code i
 - **Ops-only by default.** Non-ops see nothing until an admin adds them to `editors` in
   `config/draftsmith.properties` (or a host mod supplies its own rules). A `worlds` list can restrict
   the editor to specific dimensions.
+- **Per-tool permission nodes.** With LuckPerms (or anything implementing fabric-permissions-api)
+  installed, tools are granted per rank: `draftsmith.use` gates the editor, and
+  `draftsmith.wand` / `edit` / `shapes` / `brush` / `measure` split the toolkit — give builders the
+  wand and fill tools, artists the brushes and shapes. `draftsmith.admin` covers reload and
+  unclamped editing. Hub buttons a player lacks simply don't appear; unset nodes fall back to the
+  ops + `editors` behavior, so the permissions mod is entirely optional. `/draft reload` now also
+  refreshes command visibility live.
 - **NEW: the protected list.** A second 9-slot row in the Brushes screen — the mask in reverse. Load
   it with blocks the brush must **never paint over** (up to nine), and everything else repaints as
   normal. The existing mask answers "only repaint X"; the protected list answers "repaint anything
