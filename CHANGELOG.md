@@ -28,6 +28,9 @@ any Fabric server can use it on any world — no plot world required. The code i
 - **`/draft wand`** — the selection wand is DraftSmith's own tool: it's handed out only from the
   `/draft` root (`editwand` still works there as an alias), and host mods attaching the editor
   under their own command keep everything else but not the wand-giver.
+- **`/draft help`** — every command listed in chat, grouped (Tools / Selection & clipboard /
+  Editing / Shapes / Measuring), with click-to-fill like the FabricPlots help. Admins also see
+  the reload line.
 - **Ops-only by default.** Non-ops see nothing until an admin adds them to `editors` in
   `config/draftsmith.properties` (or a host mod supplies its own rules). A `worlds` list can restrict
   the editor to specific dimensions.

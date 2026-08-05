@@ -42,6 +42,7 @@ public final class DraftCommands {
                 // to a host root ("editwand" kept as a quiet alias for FabricPlots muscle memory).
                 .then(Commands.literal("wand").executes(DraftCommands::editwand))
                 .then(Commands.literal("editwand").executes(DraftCommands::editwand))
+                .then(Commands.literal("help").executes(DraftCommands::help))
                 .then(Commands.literal("reload")
                         .requires(src -> src.getPlayer() == null || access().isAdmin(src.getPlayer()))
                         .executes(ctx -> {
@@ -354,6 +355,73 @@ public final class DraftCommands {
             if (p == null) return 0;
             return DraftEdit.move(p, (ServerLevel) p.level(), count);
         } catch (Exception e) { return err(ctx, e); }
+    }
+
+    // ---- help ------------------------------------------------------------
+
+    private static final int CLR_TEAL = 0x1ABC9C, CLR_YELLOW = 0xFFE066, CLR_PURPLE = 0xC792EA;
+
+    private static int help(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack src = ctx.getSource();
+        src.sendSuccess(() -> Component.literal("DraftSmith").withStyle(s -> s.withColor(CLR_TEAL))
+                .append(Component.literal(" — build tools (click a command to fill it in)").withStyle(s -> s.withColor(CLR_PURPLE))), false);
+
+        section(src, "Tools");
+        line(src, "/draft", "open the editor hub — every tool below as a GUI");
+        line(src, "/draft wand", "get the selection wand (right-click corners 1 / 2)");
+        line(src, "/draft brush", "get a paint brush (sneak + right-click configures it)");
+
+        section(src, "Selection & clipboard");
+        line(src, "/draft pos1", "set corner 1 where you stand");
+        line(src, "/draft pos2", "set corner 2 where you stand");
+        line(src, "/draft copy", "copy the selection");
+        line(src, "/draft cut", "copy, then clear the selection");
+        line(src, "/draft paste", "paste where you aim");
+        line(src, "/draft stack <count>", "repeat the selection along your facing");
+        line(src, "/draft move <count>", "shift the selection along your facing");
+
+        section(src, "Editing");
+        line(src, "/draft set <block>", "fill the selection");
+        line(src, "/draft replace <from> <to>", "replace only matching blocks");
+        line(src, "/draft walls <block>", "perimeter walls around the selection");
+        line(src, "/draft undo", "step the last edit back (10 deep)");
+        line(src, "/draft redo", "step forward again");
+
+        section(src, "Shapes");
+        line(src, "/draft sphere <block> <radius>", "sphere where you stand");
+        line(src, "/draft hsphere <block> <radius>", "hollow sphere");
+        line(src, "/draft cyl <block> <radius> [height]", "cylinder");
+        line(src, "/draft disc <block> <size> [height]", "flat disc");
+        line(src, "/draft ring <block> <size> [height]", "ring");
+        line(src, "/draft line <block> [thickness]", "3D line, corner 1 → corner 2");
+
+        section(src, "Measuring");
+        line(src, "/draft measure", "open the measuring screen");
+        line(src, "/draft center", "gold-mark the middle of the corner 1 → corner 2 line");
+        line(src, "/draft tape", "lay a numbered measuring tape between the corners");
+        line(src, "/draft tape clear", "remove your tapes (restores what they covered)");
+
+        ServerPlayer p = src.getPlayer();
+        if (p == null || access().isAdmin(p)) {
+            section(src, "Admin");
+            line(src, "/draft reload", "reload config/draftsmith.properties");
+        }
+        return 1;
+    }
+
+    private static void section(CommandSourceStack src, String title) {
+        src.sendSuccess(() -> Component.literal(title).withStyle(s -> s.withColor(CLR_PURPLE).applyFormat(net.minecraft.ChatFormatting.BOLD)), false);
+    }
+
+    private static void line(CommandSourceStack src, String command, String desc) {
+        int cut = command.length();
+        int lt = command.indexOf('<'), br = command.indexOf('[');
+        if (lt >= 0) cut = lt;
+        if (br >= 0 && br < cut) cut = br;
+        final String suggest = command.substring(0, cut); // drop <args>/[args] from what gets typed
+        src.sendSuccess(() -> Component.literal("  " + command)
+                .withStyle(s -> s.withColor(CLR_YELLOW).withClickEvent(com.draftsmith.compat.Compat.suggestCommand(suggest)))
+                .append(Component.literal("   " + desc).withStyle(s -> s.withColor(CLR_PURPLE))), false);
     }
 
     // ---- helpers ---------------------------------------------------------
