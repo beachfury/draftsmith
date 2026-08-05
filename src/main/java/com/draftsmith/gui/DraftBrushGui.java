@@ -26,6 +26,10 @@ public final class DraftBrushGui {
     private DraftBrushGui() {}
 
     public static void open(ServerPlayer sp) {
+        if (!com.draftsmith.api.DraftSmithApi.access().canUse(sp, com.draftsmith.api.EditAccess.Tool.BRUSH)) {
+            DraftEdit.msg(sp, "You don't have permission for the brush tools.");
+            return;
+        }
         SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x6, sp, false);
         gui.setTitle(Component.literal("Build Editor — Brushes"));
         render(gui, sp);

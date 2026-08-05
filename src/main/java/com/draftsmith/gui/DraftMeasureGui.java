@@ -23,6 +23,10 @@ public final class DraftMeasureGui {
     private DraftMeasureGui() {}
 
     public static void open(ServerPlayer sp) {
+        if (!com.draftsmith.api.DraftSmithApi.access().canUse(sp, com.draftsmith.api.EditAccess.Tool.MEASURE)) {
+            DraftEdit.msg(sp, "You don't have permission for the measure tools.");
+            return;
+        }
         SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x3, sp, false);
         gui.setTitle(Component.literal("Build Editor — Measure"));
         render(gui, sp);

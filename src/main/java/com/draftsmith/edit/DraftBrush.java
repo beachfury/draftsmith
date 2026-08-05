@@ -129,7 +129,7 @@ public final class DraftBrush {
             if (!access().isActiveDimension(world)) return InteractionResultHolder.pass(held);
             if (!isBrush(held)) return InteractionResultHolder.pass(held);
             if (world.isClientSide() || !(player instanceof ServerPlayer sp)) return InteractionResultHolder.success(held);
-            if (!access().canUse(sp)) return InteractionResultHolder.pass(held);
+            if (!access().canUse(sp, EditAccess.Tool.BRUSH)) return InteractionResultHolder.pass(held);
             if (player.isShiftKeyDown()) PENDING_GUI.add(sp.getUUID()); else paint(sp, held);
             return InteractionResultHolder.success(held);
         });
@@ -140,7 +140,7 @@ public final class DraftBrush {
             ItemStack held = player.getItemInHand(hand);
             if (!isBrush(held)) return InteractionResult.PASS;
             if (world.isClientSide() || !(player instanceof ServerPlayer sp)) return InteractionResult.SUCCESS;
-            if (!access().canUse(sp)) return InteractionResult.PASS;
+            if (!access().canUse(sp, EditAccess.Tool.BRUSH)) return InteractionResult.PASS;
             if (player.isShiftKeyDown()) PENDING_GUI.add(sp.getUUID()); else paint(sp, held);
             return InteractionResult.SUCCESS;
         });
@@ -155,8 +155,8 @@ public final class DraftBrush {
                     if (PENDING_GUI.remove(sp.getUUID())) openGui.accept(sp);
                     if (!preview) continue;
                     ItemStack held = sp.getMainHandItem();
-                    if (isBrush(held)) { if (access().canUse(sp)) previewRing(sp, level, read(held).size); }
-                    else if (DraftEdit.isWand(held)) outlineSelection(sp, level);
+                    if (isBrush(held)) { if (access().canUse(sp, EditAccess.Tool.BRUSH)) previewRing(sp, level, read(held).size); }
+                    else if (DraftEdit.isWand(held)) { if (access().canUse(sp, EditAccess.Tool.WAND)) outlineSelection(sp, level); }
                 }
             }
             PENDING_GUI.clear(); // anyone who left the active dimensions mid-click

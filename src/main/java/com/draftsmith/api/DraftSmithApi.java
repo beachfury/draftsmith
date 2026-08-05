@@ -30,9 +30,24 @@ public final class DraftSmithApi {
             return DraftConfig.worldEnabled(level.dimension().location().toString()); // 26.x: .identifier()
         }
 
+        /** Ops + the config editors list — what decides when no permissions mod defines a node. */
+        private boolean fallback(net.minecraft.server.level.ServerPlayer p) {
+            return vanillaAdmin(p) || DraftConfig.isEditor(p.getName().getString());
+        }
+
         @Override
         public boolean canUse(net.minecraft.server.level.ServerPlayer p) {
-            return isAdmin(p) || DraftConfig.isEditor(p.getName().getString());
+            return PermBridge.check(p, "draftsmith.use", fallback(p));
+        }
+
+        @Override
+        public boolean canUse(net.minecraft.server.level.ServerPlayer p, Tool tool) {
+            return canUse(p) && PermBridge.check(p, "draftsmith." + tool.name().toLowerCase(java.util.Locale.ROOT), fallback(p));
+        }
+
+        @Override
+        public boolean isAdmin(net.minecraft.server.level.ServerPlayer p) {
+            return PermBridge.check(p, "draftsmith.admin", vanillaAdmin(p));
         }
 
         /**
@@ -40,8 +55,7 @@ public final class DraftSmithApi {
          * single-player host, LAN host, and dedicated-server ops alike) rather than
          * ops.json / profile identity, which are unreliable in single-player.
          */
-        @Override
-        public boolean isAdmin(net.minecraft.server.level.ServerPlayer p) {
+        private boolean vanillaAdmin(net.minecraft.server.level.ServerPlayer p) {
             var server = p.level().getServer();
             if (server == null) return false;
             if (server.isSingleplayer()) return true;
