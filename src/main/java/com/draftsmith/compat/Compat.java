@@ -33,6 +33,15 @@ public final class Compat {
         return BuiltInRegistries.ITEM.get(ResourceLocation.parse(id));
     }
 
+    // ---- chat click events (/draft help) -----------------------------------
+    // 1.21.1: new ClickEvent(Action.SUGGEST_COMMAND, s). 26.x: ClickEvent.SuggestCommand record.
+
+    /** A click event that puts {@code command} into the player's chat bar. */
+    public static net.minecraft.network.chat.ClickEvent suggestCommand(String command) {
+        return new net.minecraft.network.chat.ClickEvent(
+                net.minecraft.network.chat.ClickEvent.Action.SUGGEST_COMMAND, command);
+    }
+
     // ---- sign text (measuring tape numbers) --------------------------------
     // SignText API is stable since 1.20, but setText/getText signatures have moved before.
 

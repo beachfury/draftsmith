@@ -74,6 +74,7 @@ Everything also has a GUI button — commands and screens do the same things.
 | Command | What it does |
 | --- | --- |
 | `/draft` | Open the editor hub |
+| `/draft help` | List every command in chat (click one to fill it in) |
 | `/draft wand` | Get the selection wand (right-click corners 1/2 alternately) |
 | `/draft brush` | Get a paint brush |
 | `/draft pos1` / `pos2` | Set a corner where you stand |
