@@ -104,7 +104,8 @@ DraftSmithApi.setAccess(new EditAccess() {
     public boolean isAdmin(ServerPlayer p) { ... }          // unclamped editing
     public boolean canEdit(ServerPlayer p, boolean admin, int x, int y, int z) { ... } // the jail
     public Ground ground(ServerLevel level, int x, int z) { ... } // what Erase restores (optional)
-    // plus cosmetic overrides: commandRoot(), messagePrefix(), notHereMessage(), editableAreaName()
+    // plus cosmetic overrides: messagePrefix(), notHereMessage(), editableAreaName()
+    // (editor chat always references its own /draft commands, which exist on your server too)
 });
 ```
 

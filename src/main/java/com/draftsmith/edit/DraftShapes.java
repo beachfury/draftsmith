@@ -189,8 +189,7 @@ public final class DraftShapes {
     public static int line(ServerPlayer sp, ServerLevel level, BlockState held, int thickness) {
         UUID id = sp.getUUID();
         BlockPos p1 = DraftEdit.POS1.get(id), p2 = DraftEdit.POS2.get(id);
-        String root = DraftEdit.access().commandRoot();
-        if (p1 == null || p2 == null) { DraftEdit.msg(sp, "A line runs corner 1 → corner 2 — set both first (/" + root + " pos1, /" + root + " pos2 or the wand)."); return 0; }
+        if (p1 == null || p2 == null) { DraftEdit.msg(sp, "A line runs corner 1 → corner 2 — set both first (/draft pos1, /draft pos2 or the wand)."); return 0; }
         boolean admin = DraftEdit.access().isAdmin(sp);
         int steps = Math.max(Math.max(Math.abs(p2.getX() - p1.getX()), Math.abs(p2.getY() - p1.getY())),
                 Math.abs(p2.getZ() - p1.getZ()));

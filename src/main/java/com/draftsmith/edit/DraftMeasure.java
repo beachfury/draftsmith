@@ -92,8 +92,7 @@ public final class DraftMeasure {
             }
         }
         tapes.addLast(snaps);
-        DraftEdit.msg(sp, "Tape laid — " + n + " blocks, numbered every " + interval + " (" + tapes.size() + "/" + MAX_TAPES + " tapes). /"
-                + DraftEdit.access().commandRoot() + " tape clear removes them all.");
+        DraftEdit.msg(sp, "Tape laid — " + n + " blocks, numbered every " + interval + " (" + tapes.size() + "/" + MAX_TAPES + " tapes). /draft tape clear removes them all.");
         return 1;
     }
 
