@@ -6,6 +6,10 @@
   "description": "Lightweight server-side building editor for Fabric: GUI shapes, paint brushes, measuring tools, clipboard and undo. Crossplay-ready (Geyser/Bedrock) — no client mod required.",
   "authors": ["BeachFury"],
   "license": "MIT",
+  "contact": {
+    "sources": "https://github.com/beachfury/draftsmith",
+    "issues": "https://github.com/beachfury/draftsmith/issues"
+  },
   "icon": "assets/draftsmith/icon.png",
   "environment": "*",
   "entrypoints": {
