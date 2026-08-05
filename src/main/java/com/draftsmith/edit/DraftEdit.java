@@ -218,8 +218,7 @@ public final class DraftEdit {
                                  java.util.function.Supplier<BlockState> material, String verb) {
         UUID id = sp.getUUID();
         BlockPos p1 = POS1.get(id), p2 = POS2.get(id);
-        String root = access().commandRoot();
-        if (p1 == null || p2 == null) { msg(sp, "Set both corners first — /" + root + " pos1 and /" + root + " pos2, or grab the wand with /draft wand."); return 0; }
+        if (p1 == null || p2 == null) { msg(sp, "Set both corners first — /draft pos1 and /draft pos2, or grab the wand with /draft wand."); return 0; }
         final boolean admin = access().isAdmin(sp);
         final int x1 = Math.min(p1.getX(), p2.getX()), x2 = Math.max(p1.getX(), p2.getX());
         final int z1 = Math.min(p1.getZ(), p2.getZ()), z2 = Math.max(p1.getZ(), p2.getZ());
@@ -242,7 +241,7 @@ public final class DraftEdit {
         if (snaps.isEmpty()) { msg(sp, "Nothing to change — make sure the selection overlaps " + access().editableAreaName() + "."); return 0; }
         for (Snapshot s : snaps) level.setBlock(s.pos(), material.get(), Block.UPDATE_CLIENTS);
         pushUndo(id, snaps);
-        msg(sp, verb + " " + snaps.size() + " block" + (snaps.size() == 1 ? "" : "s") + ". /" + root + " undo to revert.");
+        msg(sp, verb + " " + snaps.size() + " block" + (snaps.size() == 1 ? "" : "s") + ". /draft undo to revert.");
         return 1;
     }
 
@@ -275,7 +274,7 @@ public final class DraftEdit {
     public static int copy(ServerPlayer sp, ServerLevel level) {
         int n = doCopy(sp, level);
         if (n < 0) return 0;
-        msg(sp, "Copied " + n + " blocks. Aim (or stand) where you want it and /" + access().commandRoot() + " paste.");
+        msg(sp, "Copied " + n + " blocks. Aim (or stand) where you want it and /draft paste.");
         return 1;
     }
 
@@ -307,7 +306,7 @@ public final class DraftEdit {
 
     public static int paste(ServerPlayer sp, ServerLevel level) {
         List<ClipBlock> clip = CLIPBOARD.get(sp.getUUID());
-        if (clip == null || clip.isEmpty()) { msg(sp, "Nothing to paste — /" + access().commandRoot() + " copy first."); return 0; }
+        if (clip == null || clip.isEmpty()) { msg(sp, "Nothing to paste — /draft copy first."); return 0; }
         boolean admin = access().isAdmin(sp);
         // Land the paste where the player is AIMING (same raycast as the brushes) — one above the
         // hit block, so aiming at the ground behaves exactly like standing there. No block in range
@@ -448,7 +447,7 @@ public final class DraftEdit {
         for (Write w : writes) if (seen.add(w.pos())) snaps.add(new Snapshot(w.pos(), level.getBlockState(w.pos())));
         for (Write w : writes) level.setBlock(w.pos(), w.state(), Block.UPDATE_CLIENTS);
         pushUndo(sp.getUUID(), snaps);
-        msg(sp, verb + " " + writes.size() + " blocks. /" + access().commandRoot() + " undo to revert.");
+        msg(sp, verb + " " + writes.size() + " blocks. /draft undo to revert.");
         return 1;
     }
 

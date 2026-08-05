@@ -47,7 +47,12 @@ public interface EditAccess {
     /** Ground level for the Erase brush: floor Y plus the floor block (null = don't repaint). */
     record Ground(int y, BlockState surface) {}
 
-    /** The command root the editor's chat messages reference (e.g. "/draft undo to revert"). */
+    /**
+     * @deprecated No longer used — the editor's chat messages always reference its own /draft
+     * commands, which exist on every server that runs DraftSmith (bundled or standalone). Hosts
+     * can delete their override; this default remains only so existing providers still compile.
+     */
+    @Deprecated(forRemoval = true)
     default String commandRoot() { return "draft"; }
 
     /** Prefix on every chat line the editor sends. */
