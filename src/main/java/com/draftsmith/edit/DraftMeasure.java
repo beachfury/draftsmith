@@ -52,10 +52,14 @@ public final class DraftMeasure {
         int dx = p2.getX() - p1.getX(), dy = p2.getY() - p1.getY(), dz = p2.getZ() - p1.getZ();
         int nonZero = (dx != 0 ? 1 : 0) + (dy != 0 ? 1 : 0) + (dz != 0 ? 1 : 0);
         if (nonZero > 1) { DraftEdit.msg(sp, "The tape runs straight only — line corners 1 and 2 up on a single axis."); return 0; }
-        ArrayDeque<List<DraftEdit.Snapshot>> tapes = TAPE.computeIfAbsent(id, k -> new ArrayDeque<>());
-        while (tapes.size() >= MAX_TAPES) restoreTape(level, tapes.pollFirst()); // retire the oldest
-
         int n = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz))) + 1;
+        if (n > DraftLimits.MAX_BLOCKS) {
+            DraftEdit.msg(sp, "That tape is too long to create safely.");
+            return 0;
+        }
+        ArrayDeque<List<DraftEdit.Snapshot>> tapes = TAPE.computeIfAbsent(id, k -> new ArrayDeque<>());
+        while (tapes.size() >= MAX_TAPES) restoreTape(sp, level, tapes.pollFirst()); // retire the oldest
+
         int interval = n <= 20 ? 2 : n <= 50 ? 5 : 10;
         int sx = Integer.signum(dx), sy = Integer.signum(dy), sz = Integer.signum(dz);
         boolean vertical = dy != 0;
@@ -69,6 +73,7 @@ public final class DraftMeasure {
         for (int i = 0; i < n; i++) {
             BlockPos pos = p1.offset(sx * i, sy * i, sz * i);
             if (!DraftEdit.canEdit(sp, admin, pos.getX(), pos.getY(), pos.getZ())) continue;
+            if (level.getBlockEntity(pos) != null || DraftEdit.blockEntityState(level.getBlockState(pos))) continue;
             snaps.add(new DraftEdit.Snapshot(pos, level.getBlockState(pos)));
             level.setBlock(pos, (i % 2 == 0 ? yellow : black).defaultBlockState(), Block.UPDATE_CLIENTS);
 
@@ -77,6 +82,7 @@ public final class DraftMeasure {
             if (!vertical) {
                 BlockPos signPos = pos.above();
                 if (!DraftEdit.canEdit(sp, admin, signPos.getX(), signPos.getY(), signPos.getZ())) continue;
+                if (level.getBlockEntity(signPos) != null || DraftEdit.blockEntityState(level.getBlockState(signPos))) continue;
                 snaps.add(new DraftEdit.Snapshot(signPos, level.getBlockState(signPos)));
                 int rot = (int) (toPlayer.toYRot() / 22.5f) & 15;
                 level.setBlock(signPos, standing.defaultBlockState()
@@ -85,6 +91,7 @@ public final class DraftMeasure {
             } else {
                 BlockPos signPos = pos.relative(toPlayer);
                 if (!DraftEdit.canEdit(sp, admin, signPos.getX(), signPos.getY(), signPos.getZ())) continue;
+                if (level.getBlockEntity(signPos) != null || DraftEdit.blockEntityState(level.getBlockState(signPos))) continue;
                 snaps.add(new DraftEdit.Snapshot(signPos, level.getBlockState(signPos)));
                 level.setBlock(signPos, wall.defaultBlockState()
                         .setValue(net.minecraft.world.level.block.WallSignBlock.FACING, toPlayer), Block.UPDATE_CLIENTS);
@@ -104,15 +111,18 @@ public final class DraftMeasure {
     public static void clearTape(ServerPlayer sp, ServerLevel level) {
         ArrayDeque<List<DraftEdit.Snapshot>> tapes = TAPE.remove(sp.getUUID());
         if (tapes == null) return;
-        while (!tapes.isEmpty()) restoreTape(level, tapes.pollFirst());
+        while (!tapes.isEmpty()) restoreTape(sp, level, tapes.pollFirst());
     }
 
-    private static void restoreTape(ServerLevel level, List<DraftEdit.Snapshot> snaps) {
+    private static void restoreTape(ServerPlayer sp, ServerLevel level, List<DraftEdit.Snapshot> snaps) {
         if (snaps == null) return;
         Block yellow = DraftEdit.blockById("minecraft:yellow_concrete"), black = DraftEdit.blockById("minecraft:black_concrete");
+        boolean admin = DraftEdit.access().isAdmin(sp);
         for (DraftEdit.Snapshot s : snaps) {
             BlockState cur = level.getBlockState(s.pos());
-            if (cur.is(yellow) || cur.is(black) || cur.getBlock() instanceof net.minecraft.world.level.block.SignBlock)
+            if (DraftEdit.canEdit(sp, admin, s.pos().getX(), s.pos().getY(), s.pos().getZ())
+                    && !DraftEdit.blockEntityState(s.old())
+                    && (cur.is(yellow) || cur.is(black) || cur.getBlock() instanceof net.minecraft.world.level.block.SignBlock))
                 level.setBlock(s.pos(), s.old(), Block.UPDATE_CLIENTS);
         }
     }
