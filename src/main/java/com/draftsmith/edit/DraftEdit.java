@@ -20,6 +20,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayDeque;
@@ -45,7 +46,7 @@ public final class DraftEdit {
     private static final String WAND_TAG = "draftsmith_wand";         // custom-data marker — survives anvil renames
     private static final String LEGACY_WAND_TAG = "fabricplots_wand"; // 0.4.0 FabricPlots wands
     private static final net.minecraft.world.item.Item WAND_ITEM = Items.WOODEN_AXE;
-    private static final int MAX_BLOCKS = 65536;   // per edit — keeps a single op from freezing the server
+    private static final long MAX_SELECTION_SCAN = 1_000_000L;
     private static final int UNDO_DEPTH = 10;      // edits kept per player — brushes invite rapid strokes
 
     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
@@ -192,7 +193,8 @@ public final class DraftEdit {
         List<BlockState> pool = new ArrayList<>();
         for (int i = 0; i < 9; i++) {
             ItemStack s = sp.getInventory().getItem(i);
-            if (!s.isEmpty() && s.getItem() instanceof net.minecraft.world.item.BlockItem bi)
+            if (!s.isEmpty() && s.getItem() instanceof net.minecraft.world.item.BlockItem bi
+                    && !(bi.getBlock() instanceof EntityBlock))
                 pool.add(bi.getBlock().defaultBlockState());
         }
         if (pool.isEmpty()) return () -> held;
@@ -202,10 +204,12 @@ public final class DraftEdit {
     // ---- operations ------------------------------------------------------
 
     public static int set(ServerPlayer sp, ServerLevel level, BlockState state) {
+        if (blockEntityState(state)) return rejectBlockEntity(sp);
         return applyEdit(sp, level, (lvl, p) -> true, materials(sp, state), "Set");
     }
 
     public static int replace(ServerPlayer sp, ServerLevel level, BlockInput from, BlockState to) {
+        if (blockEntityState(to)) return rejectBlockEntity(sp);
         return applyEdit(sp, level, from::test, materials(sp, to), "Replaced");
     }
 
@@ -219,13 +223,17 @@ public final class DraftEdit {
         UUID id = sp.getUUID();
         BlockPos p1 = POS1.get(id), p2 = POS2.get(id);
         if (p1 == null || p2 == null) { msg(sp, "Set both corners first — /draft pos1 and /draft pos2, or grab the wand with /draft wand."); return 0; }
+        if (selectionVolume(p1, p2, level) > MAX_SELECTION_SCAN) {
+            msg(sp, "That selection is too large to scan safely — narrow your corners first.");
+            return 0;
+        }
         final boolean admin = access().isAdmin(sp);
         final int x1 = Math.min(p1.getX(), p2.getX()), x2 = Math.max(p1.getX(), p2.getX());
         final int z1 = Math.min(p1.getZ(), p2.getZ()), z2 = Math.max(p1.getZ(), p2.getZ());
         final int y1 = Math.max(access().minY(level), Math.min(p1.getY(), p2.getY()));
         final int y2 = Math.min(access().maxY(level), Math.max(p1.getY(), p2.getY()));
 
-        List<Snapshot> snaps = new ArrayList<>();
+        List<Write> writes = new ArrayList<>();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int x = x1; x <= x2; x++) {
             for (int z = z1; z <= z2; z++) {
@@ -233,16 +241,12 @@ public final class DraftEdit {
                     if (!access().canEdit(sp, admin, x, y, z)) continue;    // the jail — asked per block
                     pos.set(x, y, z);
                     if (!include.test(level, pos)) continue;                // replace: only matching blocks
-                    snaps.add(new Snapshot(pos.immutable(), level.getBlockState(pos)));
-                    if (snaps.size() > MAX_BLOCKS) { msg(sp, "That's over " + MAX_BLOCKS + " blocks — narrow your selection."); return 0; }
+                    writes.add(new Write(pos.immutable(), material.get()));
+                    if (writes.size() > DraftLimits.MAX_BLOCKS) { msg(sp, "That's over " + DraftLimits.MAX_BLOCKS + " blocks — narrow your selection."); return 0; }
                 }
             }
         }
-        if (snaps.isEmpty()) { msg(sp, "Nothing to change — make sure the selection overlaps " + access().editableAreaName() + "."); return 0; }
-        for (Snapshot s : snaps) level.setBlock(s.pos(), material.get(), Block.UPDATE_CLIENTS);
-        pushUndo(id, snaps);
-        msg(sp, verb + " " + snaps.size() + " block" + (snaps.size() == 1 ? "" : "s") + ". /draft undo to revert.");
-        return 1;
+        return commit(sp, level, writes, verb);
     }
 
     public static int undo(ServerPlayer sp, ServerLevel level) {
@@ -258,7 +262,17 @@ public final class DraftEdit {
                             Map<UUID, Deque<List<Snapshot>>> to, String empty, String verb) {
         Deque<List<Snapshot>> stack = from.get(sp.getUUID());
         if (stack == null || stack.isEmpty()) { msg(sp, empty); return 0; }
-        List<Snapshot> edit = stack.pop();
+        List<Snapshot> edit = stack.peek();
+        boolean admin = access().isAdmin(sp);
+        for (Snapshot s : edit) {
+            BlockPos pos = s.pos();
+            if (!canEdit(sp, admin, pos.getX(), pos.getY(), pos.getZ())
+                    || unsafeWrite(level, pos, s.old())) {
+                msg(sp, "Undo/redo stopped: access changed or the edit touches a container/sign.");
+                return 0;
+            }
+        }
+        stack.pop();
         List<Snapshot> inverse = new ArrayList<>(edit.size());
         for (Snapshot s : edit) {
             inverse.add(new Snapshot(s.pos(), level.getBlockState(s.pos())));
@@ -288,6 +302,10 @@ public final class DraftEdit {
         UUID id = sp.getUUID();
         BlockPos p1 = POS1.get(id), p2 = POS2.get(id);
         if (p1 == null || p2 == null) { msg(sp, "Set both corners first."); return -1; }
+        if (selectionVolume(p1, p2, level) > DraftLimits.MAX_BLOCKS) {
+            msg(sp, "Selection too big to copy (over " + DraftLimits.MAX_BLOCKS + ").");
+            return -1;
+        }
         BlockPos origin = sp.blockPosition();
         int x1 = Math.min(p1.getX(), p2.getX()), x2 = Math.max(p1.getX(), p2.getX());
         int z1 = Math.min(p1.getZ(), p2.getZ()), z2 = Math.max(p1.getZ(), p2.getZ());
@@ -297,8 +315,12 @@ public final class DraftEdit {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int x = x1; x <= x2; x++) for (int z = z1; z <= z2; z++) for (int y = y1; y <= y2; y++) {
             pos.set(x, y, z);
+            if (level.getBlockEntity(pos) != null) {
+                msg(sp, "Copy stopped: selections containing containers or signs are not supported safely.");
+                return -1;
+            }
             clip.add(new ClipBlock(x - origin.getX(), y - origin.getY(), z - origin.getZ(), level.getBlockState(pos)));
-            if (clip.size() > MAX_BLOCKS) { msg(sp, "Selection too big to copy (over " + MAX_BLOCKS + ")."); return -1; }
+            if (clip.size() > DraftLimits.MAX_BLOCKS) { msg(sp, "Selection too big to copy (over " + DraftLimits.MAX_BLOCKS + ")."); return -1; }
         }
         CLIPBOARD.put(id, clip);
         return clip.size();
@@ -332,6 +354,8 @@ public final class DraftEdit {
         UUID id = sp.getUUID();
         BlockPos p1 = POS1.get(id), p2 = POS2.get(id);
         if (p1 == null || p2 == null) { msg(sp, "Set both corners first."); return 0; }
+        long volume = selectionVolume(p1, p2, level);
+        if (volume > MAX_SELECTION_SCAN || DraftLimits.exceeds(volume, count, DraftLimits.MAX_BLOCKS)) return rejectLarge(sp);
         boolean admin = access().isAdmin(sp);
         Direction dir = sp.getDirection();
         int x1 = Math.min(p1.getX(), p2.getX()), x2 = Math.max(p1.getX(), p2.getX());
@@ -358,6 +382,8 @@ public final class DraftEdit {
         UUID id = sp.getUUID();
         BlockPos p1 = POS1.get(id), p2 = POS2.get(id);
         if (p1 == null || p2 == null) { msg(sp, "Set both corners first."); return 0; }
+        long volume = selectionVolume(p1, p2, level);
+        if (volume > MAX_SELECTION_SCAN || DraftLimits.exceeds(volume, 2, DraftLimits.MAX_BLOCKS)) return rejectLarge(sp);
         boolean admin = access().isAdmin(sp);
         Direction dir = sp.getDirection();
         int ox = dir.getStepX() * count, oy = dir.getStepY() * count, oz = dir.getStepZ() * count;
@@ -383,14 +409,19 @@ public final class DraftEdit {
     // ---- shapes ----------------------------------------------------------
 
     public static int walls(ServerPlayer sp, ServerLevel level, BlockState state) {
+        if (blockEntityState(state)) return rejectBlockEntity(sp);
         UUID id = sp.getUUID();
         BlockPos p1 = POS1.get(id), p2 = POS2.get(id);
         if (p1 == null || p2 == null) { msg(sp, "Set both corners first."); return 0; }
+        if (selectionVolume(p1, p2, level) > MAX_SELECTION_SCAN) return rejectLarge(sp);
         boolean admin = access().isAdmin(sp);
         int x1 = Math.min(p1.getX(), p2.getX()), x2 = Math.max(p1.getX(), p2.getX());
         int z1 = Math.min(p1.getZ(), p2.getZ()), z2 = Math.max(p1.getZ(), p2.getZ());
         int y1 = Math.max(access().minY(level), Math.min(p1.getY(), p2.getY()));
         int y2 = Math.min(access().maxY(level), Math.max(p1.getY(), p2.getY()));
+        long dx = (long) x2 - x1 + 1L, dz = (long) z2 - z1 + 1L, dy = Math.max(0L, (long) y2 - y1 + 1L);
+        long perimeter = dx == 1 || dz == 1 ? dx * dz : 2L * dx + 2L * dz - 4L;
+        if (DraftLimits.exceeds(perimeter, dy, DraftLimits.MAX_BLOCKS)) return rejectLarge(sp);
         var mat = materials(sp, state);
         List<Write> writes = new ArrayList<>();
         for (int x = x1; x <= x2; x++) for (int z = z1; z <= z2; z++) {
@@ -401,6 +432,11 @@ public final class DraftEdit {
     }
 
     public static int sphere(ServerPlayer sp, ServerLevel level, BlockState state, int r, boolean hollow) {
+        if (blockEntityState(state)) return rejectBlockEntity(sp);
+        double outerEstimate = r + 0.5, innerEstimate = Math.max(0, r - 0.5);
+        double estimatedWrites = 4.0 / 3.0 * Math.PI * (outerEstimate * outerEstimate * outerEstimate
+                - (hollow ? innerEstimate * innerEstimate * innerEstimate : 0));
+        if (estimatedWrites > DraftLimits.MAX_BLOCKS) return rejectLarge(sp);
         boolean admin = access().isAdmin(sp);
         BlockPos c = sp.blockPosition();
         double outer = r + 0.5, inner = r - 0.5;
@@ -416,6 +452,9 @@ public final class DraftEdit {
     }
 
     public static int cylinder(ServerPlayer sp, ServerLevel level, BlockState state, int r, int height) {
+        if (blockEntityState(state)) return rejectBlockEntity(sp);
+        double outerEstimate = r + 0.5;
+        if (Math.PI * outerEstimate * outerEstimate * height > DraftLimits.MAX_BLOCKS) return rejectLarge(sp);
         boolean admin = access().isAdmin(sp);
         BlockPos c = sp.blockPosition();
         double rr = (r + 0.5) * (r + 0.5);
@@ -441,19 +480,64 @@ public final class DraftEdit {
     /** Snapshot (deduped, original states), apply all writes, push one undo entry. */
     public static int commit(ServerPlayer sp, ServerLevel level, List<Write> writes, String verb) {
         if (writes.isEmpty()) { msg(sp, "Nothing to change — make sure it lands on " + access().editableAreaName() + "."); return 0; }
-        if (writes.size() > MAX_BLOCKS) { msg(sp, "That's over " + MAX_BLOCKS + " blocks — use a smaller selection or count."); return 0; }
+        if (writes.size() > DraftLimits.MAX_BLOCKS) { msg(sp, "That's over " + DraftLimits.MAX_BLOCKS + " blocks — use a smaller selection or count."); return 0; }
+        boolean admin = access().isAdmin(sp);
         Set<BlockPos> seen = new HashSet<>();
         List<Snapshot> snaps = new ArrayList<>();
-        for (Write w : writes) if (seen.add(w.pos())) snaps.add(new Snapshot(w.pos(), level.getBlockState(w.pos())));
-        for (Write w : writes) level.setBlock(w.pos(), w.state(), Block.UPDATE_CLIENTS);
+        List<Write> safe = new ArrayList<>(writes.size());
+        int skipped = 0;
+        for (Write w : writes) {
+            BlockPos pos = w.pos();
+            if (!canEdit(sp, admin, pos.getX(), pos.getY(), pos.getZ()) || unsafeWrite(level, pos, w.state())) {
+                skipped++;
+                continue;
+            }
+            safe.add(w);
+            if (seen.add(pos)) snaps.add(new Snapshot(pos, level.getBlockState(pos)));
+        }
+        if (safe.isEmpty()) {
+            msg(sp, "Nothing changed — access changed or the edit touches a container/sign.");
+            return 0;
+        }
+        for (Write w : safe) level.setBlock(w.pos(), w.state(), Block.UPDATE_CLIENTS);
         pushUndo(sp.getUUID(), snaps);
-        msg(sp, verb + " " + writes.size() + " blocks. /draft undo to revert.");
+        msg(sp, verb + " " + safe.size() + " blocks. /draft undo to revert."
+                + (skipped > 0 ? " (" + skipped + " unsafe or no-longer-authorized writes skipped.)" : ""));
         return 1;
     }
 
     /** Can this player write at x/y/z? Delegates to the host's access provider — the jail. */
     public static boolean canEdit(ServerPlayer sp, boolean admin, int x, int y, int z) {
         return access().canEdit(sp, admin, x, y, z);
+    }
+
+    static boolean unsafeWrite(ServerLevel level, BlockPos pos, BlockState state) {
+        return blockEntityState(state) || level.getBlockEntity(pos) != null;
+    }
+
+    static boolean blockEntityState(BlockState state) {
+        return state.getBlock() instanceof EntityBlock;
+    }
+
+    private static long selectionVolume(BlockPos p1, BlockPos p2, ServerLevel level) {
+        long dx = Math.abs((long) p1.getX() - p2.getX()) + 1L;
+        long dz = Math.abs((long) p1.getZ() - p2.getZ()) + 1L;
+        int y1 = Math.max(access().minY(level), Math.min(p1.getY(), p2.getY()));
+        int y2 = Math.min(access().maxY(level), Math.max(p1.getY(), p2.getY()));
+        long dy = Math.max(0L, (long) y2 - y1 + 1L);
+        if (DraftLimits.exceeds(dx, dz, Long.MAX_VALUE)) return Long.MAX_VALUE;
+        long area = dx * dz;
+        return DraftLimits.exceeds(area, dy, Long.MAX_VALUE) ? Long.MAX_VALUE : area * dy;
+    }
+
+    static int rejectBlockEntity(ServerPlayer sp) {
+        msg(sp, "Containers and signs are not supported by editor history; place them by hand.");
+        return 0;
+    }
+
+    static int rejectLarge(ServerPlayer sp) {
+        msg(sp, "That operation is too large to run safely; use a smaller selection, size, height, or count.");
+        return 0;
     }
 
     private static void pushUndo(UUID id, List<Snapshot> snaps) {

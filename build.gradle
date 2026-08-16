@@ -4,7 +4,7 @@ plugins {
     id 'maven-publish'
 }
 
-// Jar name carries the Minecraft target, e.g. draftsmith-0.1.0+26.1.2.jar (Fabric convention).
+// Jar name carries the Minecraft target, e.g. draftsmith-1.0.1+26.2.jar (Fabric convention).
 version = "${project.mod_version}+${project.minecraft_version}"
 group = project.maven_group
 
@@ -28,13 +28,16 @@ dependencies {
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
     // Server-side inventory GUIs (renders on vanilla + Bedrock-via-Geyser). Must also be present at
-    // runtime — sgui-2.0.0+26.1.jar goes in the server's mods folder alongside this mod.
-    implementation "eu.pb4:sgui:2.1.0+26.2"
+    // runtime — sgui-2.1.0+26.2.jar goes in the server's mods folder alongside this mod.
+implementation "eu.pb4:sgui:${project.sgui_version}"
 
     // Permission nodes (draftsmith.use/wand/edit/shapes/brush/measure/admin) — the check API
     // LuckPerms and friends implement. compileOnly: NOT bundled, NOT required; without it the
     // ops + editors-list gate decides everything (PermBridge guards the classload).
     compileOnly "me.lucko:fabric-permissions-api:0.7.0"
+
+    testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.11.4"
 }
 
 java {
@@ -46,6 +49,10 @@ java {
 tasks.withType(JavaCompile).configureEach {
     it.options.encoding = 'UTF-8'
     it.options.release = 25
+}
+
+test {
+    useJUnitPlatform()
 }
 
 processResources {

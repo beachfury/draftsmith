@@ -2,9 +2,31 @@
 
 All notable changes to DraftSmith.
 
-## [1.0.1] — unreleased
+## [1.0.1] — 2026-08-16
+
+The safety and reliability update for Minecraft 26.1.2, 26.2 and 1.21.1.
+
+### Added
+- Regression tests for overflow-safe edit limits and shape-size estimates.
+
+### Fixed
+- **Integrated-server loading.** DraftSmith remains server-side in behavior but now initializes in
+  single-player test worlds as well as dedicated servers.
+- **Undo and redo revalidate access before changing history.** If a host region changes ownership or
+  permission after an edit, the history step is refused without popping it or writing outside the
+  player's current area.
+- **Containers and signs keep their data.** Generic edits, brushes, clipboard operations, shape markers
+  and measuring tapes no longer replace existing block entities with state-only history. Container/sign
+  materials are rejected from operations that cannot preserve their data.
+- **Every shared write is rechecked at commit time.** Host-mod access decisions now apply even when an
+  operation planned its writes earlier in the tick.
+- **Large operations are rejected before expensive allocation.** Selection scans, stack/move, walls,
+  spheres, cylinders, parametric shapes, lines and tapes now use overflow-safe preflight limits instead
+  of growing a huge list before discovering the 65,536-block cap.
 
 ### Changed
+- Updated each Minecraft branch to the latest compatible sgui release: `1.6.1+1.21.1`,
+  `2.0.0+26.1`, or `2.1.0+26.2`.
 - Surface brushes (paint, gradient, blend, splatter, spray, overlay) now treat
   see-through decorations — signs, lecterns, torches, flowers, snow layers, any
   block that doesn't fill its space — as open air when finding the surface. The
