@@ -53,6 +53,10 @@ public final class DraftShapes {
         boolean admin = DraftEdit.access().isAdmin(sp);
         for (BlockPos p : positions) {
             if (!DraftEdit.canEdit(sp, admin, p.getX(), p.getY(), p.getZ())) continue;
+            if (DraftEdit.unsafeWrite(level, p, Blocks.GOLD_BLOCK.defaultBlockState())) {
+                DraftEdit.msg(sp, "Center marker skipped a container/sign to protect its data.");
+                continue;
+            }
             covered.add(new DraftEdit.Snapshot(p, level.getBlockState(p)));
             level.setBlock(p, Blocks.GOLD_BLOCK.defaultBlockState(), Block.UPDATE_CLIENTS);
         }
@@ -92,9 +96,12 @@ public final class DraftShapes {
     public static void clearShapeMarker(ServerPlayer sp, ServerLevel level) {
         List<DraftEdit.Snapshot> covered = CENTER_MARKER.remove(sp.getUUID());
         if (covered == null) return;
+        boolean admin = DraftEdit.access().isAdmin(sp);
         for (DraftEdit.Snapshot s : covered) {
             // Only un-place gold we placed (don't clobber a block the player changed since).
-            if (level.getBlockState(s.pos()).is(Blocks.GOLD_BLOCK)) {
+            if (DraftEdit.canEdit(sp, admin, s.pos().getX(), s.pos().getY(), s.pos().getZ())
+                    && !DraftEdit.blockEntityState(s.old())
+                    && level.getBlockState(s.pos()).is(Blocks.GOLD_BLOCK)) {
                 level.setBlock(s.pos(), s.old(), Block.UPDATE_CLIENTS);
             }
         }
@@ -109,7 +116,12 @@ public final class DraftShapes {
      */
     public static int buildShape(ServerPlayer sp, ServerLevel level, BlockState held, Shape shape,
                                  boolean hollow, int size, int height, int thickness, int repeat, int spacing) {
+        if (DraftEdit.blockEntityState(held)) return DraftEdit.rejectBlockEntity(sp);
         if (shape == Shape.LINE) return line(sp, level, held, thickness);
+        long perShape = estimate(shape, hollow, size, height, thickness);
+        if (perShape > DraftLimits.MAX_BLOCKS
+                || DraftLimits.exceeds(Math.max(1L, perShape), repeat, DraftLimits.MAX_BLOCKS))
+            return DraftEdit.rejectLarge(sp);
         boolean admin = DraftEdit.access().isAdmin(sp);
         BlockPos base = SHAPE_CENTER.get(sp.getUUID());
         if (base == null) {
@@ -187,9 +199,17 @@ public final class DraftShapes {
      * visits every block the ideal segment passes through; thickness grows it into a square beam.
      */
     public static int line(ServerPlayer sp, ServerLevel level, BlockState held, int thickness) {
+        if (DraftEdit.blockEntityState(held)) return DraftEdit.rejectBlockEntity(sp);
         UUID id = sp.getUUID();
         BlockPos p1 = DraftEdit.POS1.get(id), p2 = DraftEdit.POS2.get(id);
         if (p1 == null || p2 == null) { DraftEdit.msg(sp, "A line runs corner 1 → corner 2 — set both first (/draft pos1, /draft pos2 or the wand)."); return 0; }
+        long boundedSteps = Math.max(Math.max(Math.abs((long) p2.getX() - p1.getX()), Math.abs((long) p2.getY() - p1.getY())),
+                Math.abs((long) p2.getZ() - p1.getZ())) + 1L;
+        long side = Math.max(1L, 2L * Math.max(0, thickness - 1) + 1L);
+        if (DraftLimits.exceeds(side, side, Long.MAX_VALUE)
+                || DraftLimits.exceeds(side * side, side, Long.MAX_VALUE)
+                || DraftLimits.exceeds(boundedSteps, side * side * side, DraftLimits.MAX_BLOCKS))
+            return DraftEdit.rejectLarge(sp);
         boolean admin = DraftEdit.access().isAdmin(sp);
         int steps = Math.max(Math.max(Math.abs(p2.getX() - p1.getX()), Math.abs(p2.getY() - p1.getY())),
                 Math.abs(p2.getZ() - p1.getZ()));
@@ -210,5 +230,32 @@ public final class DraftShapes {
         for (BlockPos p : cells)
             if (DraftEdit.canEdit(sp, admin, p.getX(), p.getY(), p.getZ())) writes.add(new DraftEdit.Write(p, mat.get()));
         return DraftEdit.commit(sp, level, writes, "Line —");
+    }
+
+    /** Conservative write estimate used before shape code allocates its write list. */
+    static long estimate(Shape shape, boolean hollow, int size, int height, int thickness) {
+        double outer = size / 2.0;
+        double inner = Math.max(0, outer - Math.max(1, thickness));
+        return switch (shape) {
+            case CIRCLE, CYLINDER -> (long) Math.ceil(Math.PI * (outer * outer
+                    - (hollow ? inner * inner : 0)) * Math.max(1, height));
+            case SQUARE -> {
+                long outerArea = (long) size * size;
+                long innerSide = Math.max(0, size - 2L * Math.max(1, thickness));
+                yield (outerArea - (hollow ? innerSide * innerSide : 0)) * Math.max(1, height);
+            }
+            case SPHERE -> (long) Math.ceil(4.0 / 3.0 * Math.PI * (outer * outer * outer
+                    - (hollow ? inner * inner * inner : 0)));
+            case PYRAMID -> {
+                long blocks = 0;
+                for (long side = size; side > 0; side -= 2) {
+                    long innerSide = Math.max(0, side - 2L * Math.max(1, thickness));
+                    blocks += side * side - (hollow ? innerSide * innerSide : 0);
+                    if (blocks > DraftLimits.MAX_BLOCKS) break;
+                }
+                yield blocks;
+            }
+            case LINE -> 0;
+        };
     }
 }

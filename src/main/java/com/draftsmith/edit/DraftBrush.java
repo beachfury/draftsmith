@@ -265,8 +265,8 @@ public final class DraftBrush {
                     for (int y = center.getY(); y >= center.getY() - r - 2; y--) {
                         BlockPos wp = new BlockPos(center.getX() + dx, y, center.getZ() + dz);
                         BlockState cur = level.getBlockState(wp);
-                        if (cur.isAir() || !cur.getFluidState().isEmpty()) continue;
-                        if (level.getBlockState(wp.above()).isAir())
+                        if (seesThrough(level, wp, cur) || !cur.getFluidState().isEmpty()) continue;
+                        if (openAbove(level, wp))
                             addWrite(writes, sp, level, admin, wp, cur, maskBlock, shield, palette, c, true, chosen);
                         break;
                     }
@@ -287,8 +287,8 @@ public final class DraftBrush {
                     for (int y = center.getY(); y >= center.getY() - r - 2; y--) {
                         BlockPos wp = new BlockPos(center.getX() + dx, y, center.getZ() + dz);
                         BlockState cur = level.getBlockState(wp);
-                        if (cur.isAir() || !cur.getFluidState().isEmpty()) continue;
-                        if (level.getBlockState(wp.above()).isAir()) { pool.add(cur); targets.add(wp); }
+                        if (seesThrough(level, wp, cur) || !cur.getFluidState().isEmpty()) continue;
+                        if (openAbove(level, wp)) { pool.add(cur); targets.add(wp); }
                         break;
                     }
                 } else {
@@ -360,8 +360,8 @@ public final class DraftBrush {
                 for (int y = scanTop; y >= center.getY() - r - 2; y--) {
                     BlockPos p = new BlockPos(center.getX() + dx, y, center.getZ() + dz);
                     BlockState cur = level.getBlockState(p);
-                    if (cur.isAir() || !cur.getFluidState().isEmpty()) continue;
-                    if (scatter && !level.getBlockState(p.above()).isAir()) break; // covered — skip column
+                    if (seesThrough(level, p, cur) || !cur.getFluidState().isEmpty()) continue;
+                    if (scatter && !openAbove(level, p)) break; // covered — skip column
                     addWrite(writes, sp, level, admin, p, cur, maskBlock, shield, palette, c, true, null);
                     break;
                 }
@@ -382,6 +382,22 @@ public final class DraftBrush {
             }
         }
         DraftEdit.commit(sp, level, writes, brushVerb(c.type));
+    }
+
+    /**
+     * Air-like for surface scans: decorations that don't fill their block —
+     * signs, lecterns, torches, flowers, snow layers — never cap a column.
+     * The ground BENEATH a sign is the paintable surface; the sign survives
+     * because writes replace the ground block without a neighbour update.
+     */
+    private static boolean seesThrough(ServerLevel level, BlockPos pos, BlockState state) {
+        return state.isAir() || !state.isCollisionShapeFullBlock(level, pos);
+    }
+
+    /** A surface is open when what's above it is air or a see-through decoration. */
+    private static boolean openAbove(ServerLevel level, BlockPos pos) {
+        BlockPos up = pos.above();
+        return seesThrough(level, up, level.getBlockState(up));
     }
 
     private static void addWrite(List<DraftEdit.Write> writes, ServerPlayer sp, ServerLevel level, boolean admin,

@@ -1,9 +1,15 @@
 # DraftSmith
 
-A **lightweight, server-side building editor** for **Fabric / Minecraft 26.1.2 & 26.2**, built for
+A **lightweight, server-side building editor** for **Fabric / Minecraft 26.1.2, 26.2 & 1.21.1**, built for
 **Java + Bedrock crossplay** (Geyser/Floodgate). Nothing is required on the client — Bedrock players
 use every screen, brush and command through Geyser. Drop the jar on the server and your ops have a
 full GUI-driven build kit on any world.
+
+The current release line is **DraftSmith 1.0.1**. It adds commit/undo permission rechecks,
+block-entity data protection and preflight limits for large edits; see [CHANGELOG.md](CHANGELOG.md).
+
+DraftSmith is server-side in behavior and does not need to be installed by connecting clients. It also
+initializes on integrated single-player servers so local worlds can be used for testing.
 
 DraftSmith is not a WorldEdit replacement. It's the small, handy toolkit for people who *build*:
 paint brushes, parametric shapes, measuring tools, a clipboard and undo — all driven by chest GUIs
@@ -40,17 +46,21 @@ that work everywhere, with a hard per-block permission jail underneath.
 - **Random texture mode** — every edit *and every hand-placed block* rolls from the block items in
   your hotbar. Duplicate slots weight the mix. Lay a varied path without ever scrolling.
 - **Undo/redo** — 10 edits deep, per player; every stroke or build is one undo entry, capped at
-  65,536 blocks per edit so a single op can never freeze the server.
+  65,536 blocks per edit. Large selections and shapes are rejected before allocation, and history
+  rechecks current access before it writes.
+- **Data-safe editing** — generic edits never overwrite containers or signs without their NBT data;
+  those blocks must be placed by hand. All shared write paths recheck the active `EditAccess` provider
+  immediately before committing.
 - **Particle previews** — a ring showing the brush's exact radius while you aim, and a green outline
   around your wand selection.
 
 ## Install
 
-Server side only. Drop into the server's `mods/` folder:
+For a dedicated server, place these in the server's `mods/` folder:
 
 - `draftsmith-<version>.jar`
 - [Fabric API](https://modrinth.com/mod/fabric-api)
-- [sgui](https://maven.nucleoid.xyz/) (`sgui-2.x` for your Minecraft version)
+- [sgui](https://github.com/Patbox/sgui) `1.6.1+1.21.1`
 
 ## Permissions — ship safe
 
