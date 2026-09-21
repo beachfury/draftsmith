@@ -1,0 +1,2 @@
+# Maven artifacts must round-trip byte-exact — no EOL conversion on anything here.
+* -text

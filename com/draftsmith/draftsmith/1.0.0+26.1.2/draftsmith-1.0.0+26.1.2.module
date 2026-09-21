@@ -1,0 +1,103 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "com.draftsmith",
+    "module": "draftsmith",
+    "version": "1.0.0+26.1.2",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.6.0"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 25,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "draftsmith-1.0.0+26.1.2.jar",
+          "url": "draftsmith-1.0.0+26.1.2.jar",
+          "size": 180461,
+          "sha512": "ef0600c7b1fc8822da39c7a1ff5b126a6c3763e4e202710d5cdc55ca576f1e7ddf4653b59516aa6a779b8db169bc91d094687755a716de82ba646a609ae48f65",
+          "sha256": "2c037b64769feb0db049cd79bce2667ea77fcedf71be01069771138e9703ae4e",
+          "sha1": "aecd1ab028d82c6b98c966ff0e7b985c7cd069c3",
+          "md5": "f4bbb6e9289d1cfcbe6073f2df5026d4"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 25,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "net.fabricmc",
+          "module": "fabric-loader",
+          "version": {
+            "requires": "0.19.3"
+          }
+        },
+        {
+          "group": "net.fabricmc.fabric-api",
+          "module": "fabric-api",
+          "version": {
+            "requires": "0.145.4+26.1.2"
+          }
+        },
+        {
+          "group": "eu.pb4",
+          "module": "sgui",
+          "version": {
+            "requires": "2.0.0+26.1"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "draftsmith-1.0.0+26.1.2.jar",
+          "url": "draftsmith-1.0.0+26.1.2.jar",
+          "size": 180461,
+          "sha512": "ef0600c7b1fc8822da39c7a1ff5b126a6c3763e4e202710d5cdc55ca576f1e7ddf4653b59516aa6a779b8db169bc91d094687755a716de82ba646a609ae48f65",
+          "sha256": "2c037b64769feb0db049cd79bce2667ea77fcedf71be01069771138e9703ae4e",
+          "sha1": "aecd1ab028d82c6b98c966ff0e7b985c7cd069c3",
+          "md5": "f4bbb6e9289d1cfcbe6073f2df5026d4"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "draftsmith-1.0.0+26.1.2-sources.jar",
+          "url": "draftsmith-1.0.0+26.1.2-sources.jar",
+          "size": 133295,
+          "sha512": "b48ab6b5d7b9ce0337a0d3441937b681855bc074bbdbdc15ff9fbc4f62740c59ce46e8713d38f8b09e4d380fc0f36aa3e2b0b99cc7ed7b0dc6f5396342546b0a",
+          "sha256": "94b6eae16071d66a15e3c54b04000f4ffac03f4ac5fe7de226fae3e0933ab064",
+          "sha1": "b41765255cf5c158eefae4a8f68b3a3b6fb45165",
+          "md5": "59b68812e36c920020555f60a01d10e0"
+        }
+      ]
+    }
+  ]
+}
