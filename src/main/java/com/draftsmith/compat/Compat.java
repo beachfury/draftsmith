@@ -33,6 +33,15 @@ public final class Compat {
         return BuiltInRegistries.ITEM.get(ResourceLocation.parse(id));
     }
 
+    // ---- giving items (wand / brush handouts) -------------------------------
+    // 26.1/26.2 & 1.21.1: placeItemBackInInventory(stack). 26.3: takes a Prediction arg
+    // (SERVER_ONLY for server-initiated gives — there is no client prediction to reconcile).
+
+    /** Put {@code stack} into the player's inventory (hotbar first, drops at their feet if full). */
+    public static void giveItem(net.minecraft.server.level.ServerPlayer p, net.minecraft.world.item.ItemStack stack) {
+        p.getInventory().placeItemBackInInventory(stack);
+    }
+
     // ---- chat click events (/draft help) -----------------------------------
     // 1.21.1: new ClickEvent(Action.SUGGEST_COMMAND, s). 26.x: ClickEvent.SuggestCommand record.
 
