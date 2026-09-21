@@ -46,7 +46,7 @@ public final class DraftBrushGui {
                     .addLoreLine(Component.literal("Hold the brush, then sneak + right-click to configure it"))
                     .addLoreLine(Component.literal("Each brush remembers its own settings — keep several!"))
                     .setCallback((i, t, a, g) -> {
-                        sp.getInventory().placeItemBackInInventory(DraftBrush.createBrush());
+                        Compat.giveItem(sp, DraftBrush.createBrush());
                         DraftEdit.msg(sp, "Brush added to your inventory.");
                         render(gui, sp);
                     }).build());
@@ -152,7 +152,7 @@ public final class DraftBrushGui {
                 .setName(Component.literal("Get another brush"))
                 .addLoreLine(Component.literal("A fresh brush with default settings"))
                 .setCallback((i, t, a, g) -> {
-                    sp.getInventory().placeItemBackInInventory(DraftBrush.createBrush());
+                    Compat.giveItem(sp, DraftBrush.createBrush());
                     DraftEdit.msg(sp, "Brush added to your inventory.");
                 }).build());
         gui.setSlot(30, DraftEditGui.btn(Items.BARRIER, "Clear palette",

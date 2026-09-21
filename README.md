@@ -1,6 +1,6 @@
 # DraftSmith
 
-A **lightweight, server-side building editor** for **Fabric / Minecraft 26.1.2, 26.2 & 1.21.1**, built for
+A **lightweight, server-side building editor** for **Fabric / Minecraft 26.1.2, 26.2, 26.3 & 1.21.1**, built for
 **Java + Bedrock crossplay** (Geyser/Floodgate). Nothing is required on the client — Bedrock players
 use every screen, brush and command through Geyser. Drop the jar on the server and your ops have a
 full GUI-driven build kit on any world.
@@ -155,8 +155,9 @@ jails it to plot ownership, and serves the same tools as `/plot <subcommand>`.
 ./gradlew build
 ```
 
-Gradle 9 / Loom 1.17. Branch `main` targets Minecraft 26.1.2 with JDK 25, branch `26.2` targets
-26.2 with JDK 25, and branch `1.21.1` targets Minecraft 1.21.1 with JDK 21 and Mojang mappings.
+Gradle 9 / Loom 1.17. Branch `main` targets Minecraft 26.1.2 with JDK 25, branches `26.2` and
+`26.3` target those versions with JDK 25, and branch `1.21.1` targets Minecraft 1.21.1 with JDK 21
+and Mojang mappings.
 
 ## License
 
