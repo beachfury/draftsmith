@@ -5,6 +5,8 @@ All notable changes to DraftSmith.
 ## [1.0.1] — 2026-08-16
 
 The safety and reliability update for Minecraft 26.1.2, 26.2 and 1.21.1.
+*2026-09-21: a Minecraft **26.3** build of 1.0.1 was added — same features, updated to 26.3's sign
+and inventory APIs.*
 
 ### Added
 - Regression tests for overflow-safe edit limits and shape-size estimates.
