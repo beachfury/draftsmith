@@ -9,6 +9,7 @@ import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
+import net.minecraft.world.level.block.entity.SignTextSlot;
 
 /**
  * The version seam. Everything that tends to change between Minecraft versions funnels through
@@ -34,12 +35,12 @@ public final class Compat {
     }
 
     // ---- giving items (wand / brush handouts) -------------------------------
-    // 26.1/26.2 & 1.21.1: placeItemBackInInventory(stack). 26.3: takes a Prediction arg
-    // (SERVER_ONLY for server-initiated gives — there is no client prediction to reconcile).
+    // 26.3: placeItemBackInInventory takes a Prediction arg — SERVER_ONLY for server-initiated
+    // gives (there is no client prediction to reconcile). 26.1/26.2 & 1.21.1: just (stack).
 
     /** Put {@code stack} into the player's inventory (hotbar first, drops at their feet if full). */
     public static void giveItem(net.minecraft.server.level.ServerPlayer p, net.minecraft.world.item.ItemStack stack) {
-        p.getInventory().placeItemBackInInventory(stack);
+        p.getInventory().placeItemBackInInventory(stack, net.minecraft.util.Prediction.SERVER_ONLY);
     }
 
     // ---- chat click events (/draft help) -----------------------------------
@@ -51,16 +52,18 @@ public final class Compat {
     }
 
     // ---- sign text (measuring tape numbers) --------------------------------
-    // SignText API is stable since 1.20, but setText/getText signatures have moved before.
+    // 26.3: getText/setText take a SignTextSlot (FRONT/BACK) instead of the older boolean, and
+    // SignText became immutable — lines/color/glow are edited through asMutable()…asImmutable().
 
     /** Write {@code text} on both faces of the sign at pos — black dye + glow ink, waxed. */
     public static void labelSign(ServerLevel level, BlockPos pos, String text) {
         if (level.getBlockEntity(pos) instanceof SignBlockEntity sbe) {
             Component c = Component.literal(text);
-            sbe.setText(sbe.getText(true).setMessage(1, c)
-                    .setColor(DyeColor.BLACK).setHasGlowingText(true), true);
-            sbe.setText(sbe.getText(false).setMessage(1, c)
-                    .setColor(DyeColor.BLACK).setHasGlowingText(true), false);
+            for (SignTextSlot slot : SignTextSlot.values()) {
+                sbe.setText(sbe.getText(slot).asMutable()
+                        .setLine(1, c).setColor(DyeColor.BLACK).setTextGlowing(true)
+                        .asImmutable(), slot);
+            }
             sbe.setWaxed(true); // nobody should be able to edit the numbers
             sbe.setChanged();
             level.sendBlockUpdated(pos, level.getBlockState(pos), level.getBlockState(pos), Block.UPDATE_CLIENTS);
