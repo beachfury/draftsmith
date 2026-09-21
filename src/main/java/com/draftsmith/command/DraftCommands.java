@@ -182,7 +182,7 @@ public final class DraftCommands {
         try {
             ServerPlayer p = user(ctx, EditAccess.Tool.BRUSH);
             if (p == null) return 0;
-            p.getInventory().placeItemBackInInventory(DraftBrush.createBrush());
+            com.draftsmith.compat.Compat.giveItem(p, DraftBrush.createBrush());
             msg(ctx, "Paint brush added. Sneak + right-click to configure it, right-click to paint.");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
