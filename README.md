@@ -149,6 +149,25 @@ that stays DraftSmith's own — players always get it with `/draft wand`, never 
 [FabricPlots](https://github.com/beachfury/fabricplots) does exactly this — it bundles DraftSmith,
 jails it to plot ownership, and serves the same tools as `/plot <subcommand>`.
 
+### Maven repository
+
+Release artifacts are published in Maven layout on this repo's
+[`maven` branch](https://github.com/beachfury/draftsmith/tree/maven) — depend on DraftSmith without
+building it:
+
+```gradle
+repositories {
+    maven {
+        url = "https://raw.githubusercontent.com/beachfury/draftsmith/maven/"
+        content { includeGroup "com.draftsmith" }
+    }
+}
+
+dependencies {
+    implementation "com.draftsmith:draftsmith:1.0.1+26.3" // pick your Minecraft target
+}
+```
+
 ## Building
 
 ```
@@ -158,6 +177,10 @@ jails it to plot ownership, and serves the same tools as `/plot <subcommand>`.
 Gradle 9 / Loom 1.17. Branch `main` targets Minecraft 26.1.2 with JDK 25, branches `26.2` and
 `26.3` target those versions with JDK 25, and branch `1.21.1` targets Minecraft 1.21.1 with JDK 21
 and Mojang mappings.
+
+Releases also update the [`maven` branch](https://github.com/beachfury/draftsmith/tree/maven):
+`tools/publish-maven.ps1` rebuilds every branch, mirrors the released artifacts into the maven
+worktree (checksums + `maven-metadata.xml`), and commits — push it alongside the release branches.
 
 ## License
 
