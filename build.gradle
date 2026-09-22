@@ -59,8 +59,11 @@ test {
 
 processResources {
     inputs.property "version", project.version
+    inputs.property "minecraft_version", project.minecraft_version
     filesMatching("fabric.mod.json") {
-        expand "version": project.version
+        // minecraft_version also fills the "minecraft": "~…" pin, so a new version branch
+        // can never ship the previous branch's constraint by accident.
+        expand "version": project.version, "minecraft_version": project.minecraft_version
     }
 }
 
